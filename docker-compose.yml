@@ -1,0 +1,25 @@
+services:
+  data-analysis-labeling-service:
+    build: .
+    container_name: data-analysis-labeling-service
+    ports:
+      - "8050:8050"
+    volumes:
+      - ./app/data:/app/app/data
+      - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DASH_DEBUG=False
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8050/_dash-dependencies"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - analysis-network
+
+networks:
+  analysis-network:
+    driver: bridge
