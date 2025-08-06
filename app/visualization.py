@@ -22,7 +22,7 @@ class SpectralVisualizer:
         self.layout_template = 'plotly_white'
 
     def create_time_series_plot(self, data: np.ndarray,
-                               sample_rate: float = 1000.0,
+                               sample_rate: float = 25600.0,
                                title: str = "Временной ряд",
                                segment_id: str = "") -> go.Figure:
         """
@@ -38,6 +38,7 @@ class SpectralVisualizer:
             Объект фигуры Plotly
         """
         try:
+            logger.info(f"Создание графика временного ряда: данные = {len(data)}, частота = {sample_rate}")
             time_axis = np.arange(len(data)) / sample_rate
 
             fig = go.Figure()
@@ -65,7 +66,19 @@ class SpectralVisualizer:
 
         except Exception as e:
             logger.error(f"Ошибка создания графика временного ряда: {e}")
-            raise
+            # Return empty figure with error message instead of raising
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Ошибка создания временного ряда: {str(e)}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False
+            )
+            fig.update_layout(
+                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                template=self.layout_template,
+                height=400
+            )
+            return fig
 
     def create_fft_plot(self, fft_result: Dict,
                        title: str = "Спектр Фурье",
@@ -84,8 +97,8 @@ class SpectralVisualizer:
             Plotly figure object
         """
         try:
-            frequencies = fft_result['frequencies']
-            magnitude = fft_result['magnitude']
+            frequencies = np.array(fft_result['frequencies'])
+            magnitude = np.array(fft_result['magnitude'])
 
             fig = go.Figure()
 
@@ -126,50 +139,139 @@ class SpectralVisualizer:
 
         except Exception as e:
             logger.error(f"Ошибка создания графика FFT: {e}")
-            raise
+            # Return empty figure with error message instead of raising
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Ошибка создания FFT: {str(e)}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False
+            )
+            fig.update_layout(
+                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                template=self.layout_template,
+                height=400
+            )
+            return fig
 
     def create_spectrogram_plot(self, stft_result: Dict,
                                title: str = "Спектрограмма",
-                               segment_id: str = "") -> go.Figure:
+                               segment_id: str = "",
+                               max_freq: float = None,
+                               use_log_scale: bool = True) -> go.Figure:
         """
-        Create spectrogram plot
+        Create spectrogram plot with adaptive frequency scaling
 
         Args:
             stft_result: STFT analysis results
             title: Plot title
             segment_id: Segment ID for display
+            max_freq: Maximum frequency to display (auto-detected if None)
+            use_log_scale: Use logarithmic scale for magnitude
 
         Returns:
             Plotly figure object
         """
         try:
-            frequencies = stft_result['frequencies']
-            times = stft_result['times']
-            spectrogram = stft_result['spectrogram']
+            logger.info(f"Создание спектрограммы: stft_result = {type(stft_result)}, keys = {list(stft_result.keys()) if stft_result else None}")
+
+            if not stft_result:
+                logger.error("STFT результаты пустые")
+                raise ValueError("STFT результаты пустые")
+
+            # Convert lists to numpy arrays if needed
+            frequencies = stft_result.get('frequencies')
+            times = stft_result.get('times')
+            spectrogram = stft_result.get('spectrogram')
+
+            if frequencies is None or times is None or spectrogram is None:
+                logger.error("Отсутствуют необходимые данные STFT")
+                raise ValueError("Отсутствуют необходимые данные STFT")
+
+            # Ensure arrays are numpy arrays
+            frequencies = np.array(frequencies)
+            times = np.array(times)
+            spectrogram = np.array(spectrogram)
+
+            logger.info(f"Спектрограмма: частоты = {len(frequencies)}, времена = {len(times)}, спектрограмма = {spectrogram.shape}")
+
+            # Adaptive frequency range detection
+            if max_freq is None:
+                # Calculate energy per frequency
+                energy_per_freq = np.mean(spectrogram, axis=1)
+
+                # Find frequency range containing 95% of energy
+                cumulative_energy = np.cumsum(energy_per_freq) / np.sum(energy_per_freq)
+                freq_95_percent = frequencies[np.argmax(cumulative_energy >= 0.95)]
+
+                # Set reasonable limits based on data
+                if freq_95_percent < 500:
+                    max_freq = min(1000, frequencies[-1])  # At least 1 kHz for visibility
+                elif freq_95_percent < 2000:
+                    max_freq = min(2000, frequencies[-1])
+                else:
+                    max_freq = min(5000, frequencies[-1])
+
+                logger.info(f"Автоматически выбран частотный диапазон: 0 - {max_freq:.0f} Гц")
+
+            # Filter data to frequency range of interest
+            freq_mask = frequencies <= max_freq
+            frequencies_filtered = frequencies[freq_mask]
+            spectrogram_filtered = spectrogram[freq_mask, :]
+
+            # Use logarithmic scale for better visibility
+            if use_log_scale:
+                # Use magnitude in dB if available, otherwise calculate
+                if 'magnitude_db' in stft_result:
+                    magnitude_db = np.array(stft_result['magnitude_db'])
+                    spectrogram_display = magnitude_db[freq_mask, :]
+                    colorbar_title = "Magnitude (dB)"
+                else:
+                    spectrogram_display = 20 * np.log10(spectrogram_filtered + 1e-10)
+                    colorbar_title = "Magnitude (dB)"
+            else:
+                spectrogram_display = spectrogram_filtered
+                colorbar_title = "Magnitude"
 
             fig = go.Figure()
 
             fig.add_trace(go.Heatmap(
-                z=spectrogram,
+                z=spectrogram_display,
                 x=times,
-                y=frequencies,
+                y=frequencies_filtered,
                 colorscale='Viridis',
-                hovertemplate='Time: %{x:.3f}s<br>Frequency: %{y:.1f} Hz<br>Magnitude: %{z:.3f}<extra></extra>'
+                colorbar=dict(title=colorbar_title),
+                hovertemplate='Time: %{x:.3f}s<br>Frequency: %{y:.1f} Hz<br>' +
+                             ('Magnitude: %{z:.1f} dB<extra></extra>' if use_log_scale else 'Magnitude: %{z:.3f}<extra></extra>')
             ))
 
             fig.update_layout(
-                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                title=f"{title} - Segment {segment_id} (0-{max_freq:.0f} Hz)" if segment_id else f"{title} (0-{max_freq:.0f} Hz)",
                 xaxis_title="Time (s)",
                 yaxis_title="Frequency (Hz)",
                 template=self.layout_template,
-                height=400
+                height=500  # Увеличена высота для лучшей видимости
             )
+
+            # Set frequency axis range
+            fig.update_yaxes(range=[0, max_freq])
 
             return fig
 
         except Exception as e:
             logger.error(f"Ошибка создания графика спектрограммы: {e}")
-            raise
+            # Return empty figure with error message instead of raising
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Ошибка создания спектрограммы: {str(e)}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False
+            )
+            fig.update_layout(
+                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                template=self.layout_template,
+                height=500
+            )
+            return fig
 
     def create_envelope_plot(self, envelope_result: Dict,
                            title: str = "Анализ огибающей",
@@ -194,7 +296,16 @@ class SpectralVisualizer:
             )
 
             # Envelope signal
-            envelope = envelope_result['envelope']
+            envelope_data = envelope_result.get('envelope')
+            if envelope_data is None:
+                fig.add_annotation(
+                    text="Данные огибающей недоступны",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False
+                )
+                return fig
+
+            envelope = np.array(envelope_data)
             time_axis = np.arange(len(envelope)) / 1000.0  # Assuming 1kHz sample rate
 
             fig.add_trace(
@@ -211,16 +322,20 @@ class SpectralVisualizer:
             # Envelope FFT
             if 'envelope_fft' in envelope_result:
                 env_fft = envelope_result['envelope_fft']
-                fig.add_trace(
-                    go.Scatter(
-                        x=env_fft['frequencies'],
-                        y=env_fft['magnitude'],
-                        mode='lines',
-                        name='Envelope FFT',
-                        line=dict(color=self.colors[1], width=1)
-                    ),
-                    row=2, col=1
-                )
+                frequencies = env_fft.get('frequencies')
+                magnitude = env_fft.get('magnitude')
+
+                if frequencies is not None and magnitude is not None:
+                    fig.add_trace(
+                        go.Scatter(
+                            x=np.array(frequencies),
+                            y=np.array(magnitude),
+                            mode='lines',
+                            name='Envelope FFT',
+                            line=dict(color=self.colors[1], width=1)
+                        ),
+                        row=2, col=1
+                    )
 
             fig.update_layout(
                 title=f"{title} - Segment {segment_id}" if segment_id else title,
@@ -238,18 +353,36 @@ class SpectralVisualizer:
 
         except Exception as e:
             logger.error(f"Ошибка создания графика огибающей: {e}")
-            raise
+            # Return empty figure with error message instead of raising
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Ошибка создания графика огибающей: {str(e)}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False
+            )
+            fig.update_layout(
+                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                template=self.layout_template,
+                height=600
+            )
+            return fig
 
     def create_wavelet_plot(self, wavelet_result: Dict,
                           title: str = "Вейвлет-анализ",
-                          segment_id: str = "") -> go.Figure:
+                          segment_id: str = "",
+                          max_freq: float = None,
+                          use_log_scale: bool = True,
+                          sample_rate: float = 25600.0) -> go.Figure:
         """
-        Create wavelet analysis plot
+        Create improved wavelet analysis plot with adaptive scaling
 
         Args:
             wavelet_result: Wavelet analysis results
             title: Plot title
             segment_id: Segment ID for display
+            max_freq: Maximum frequency to display (auto-detected if None)
+            use_log_scale: Use logarithmic scale for power
+            sample_rate: Sampling rate for time axis
 
         Returns:
             Plotly figure object
@@ -275,15 +408,7 @@ class SpectralVisualizer:
             frequencies = wavelet_result.get('frequencies')
             scales = wavelet_result.get('scales')
 
-            # Convert to numpy arrays if they're lists
-            if isinstance(power_spectrum, list):
-                power_spectrum = np.array(power_spectrum)
-            if isinstance(frequencies, list):
-                frequencies = np.array(frequencies)
-            if isinstance(scales, list):
-                scales = np.array(scales)
-
-            # Validate data
+            # Validate data first
             if power_spectrum is None or frequencies is None:
                 fig = go.Figure()
                 fig.add_annotation(
@@ -298,27 +423,89 @@ class SpectralVisualizer:
                 )
                 return fig
 
+            # Convert to numpy arrays if they're lists
+            if isinstance(power_spectrum, list):
+                power_spectrum = np.array(power_spectrum)
+            if isinstance(frequencies, list):
+                frequencies = np.array(frequencies)
+            if isinstance(scales, list):
+                scales = np.array(scales)
+
             # Ensure power_spectrum is 2D
             if power_spectrum.ndim == 1:
                 power_spectrum = power_spectrum.reshape(1, -1)
 
+            logger.info(f"Вейвлет график: частоты = {len(frequencies)}, power spectrum = {power_spectrum.shape}")
+            logger.info(f"Частотный диапазон: {frequencies[0]:.3f} - {frequencies[-1]:.3f} Гц")
+            logger.info(f"Power spectrum диапазон: {np.min(power_spectrum):.6f} - {np.max(power_spectrum):.6f}")
+
+            # Adaptive frequency range detection
+            if max_freq is None:
+                # Calculate energy per frequency
+                energy_per_freq = np.mean(power_spectrum, axis=1)
+
+                # Find frequency range containing 90% of energy
+                cumulative_energy = np.cumsum(energy_per_freq) / np.sum(energy_per_freq)
+                freq_90_percent = frequencies[np.argmax(cumulative_energy >= 0.90)]
+
+                # Set reasonable limits based on data
+                if freq_90_percent < 10:
+                    max_freq = min(50, frequencies[-1])
+                elif freq_90_percent < 100:
+                    max_freq = min(200, frequencies[-1])
+                else:
+                    max_freq = min(500, frequencies[-1])
+
+                logger.info(f"Автоматически выбран частотный диапазон: {frequencies[0]:.3f} - {max_freq:.0f} Гц")
+
+            # Filter data to frequency range of interest
+            freq_mask = frequencies <= max_freq
+            frequencies_filtered = frequencies[freq_mask]
+            power_spectrum_filtered = power_spectrum[freq_mask, :]
+
+            # Create proper time axis
+            time_axis = np.arange(power_spectrum_filtered.shape[1]) / sample_rate * power_spectrum_filtered.shape[1] / len(frequencies_filtered)
+
+            # Apply logarithmic scaling for better visibility
+            if use_log_scale and np.max(power_spectrum_filtered) > 0:
+                # Use percentile-based scaling to avoid extreme values
+                p1 = np.percentile(power_spectrum_filtered[power_spectrum_filtered > 0], 1)
+                p99 = np.percentile(power_spectrum_filtered, 99)
+
+                # Clip values to avoid log of zero
+                power_spectrum_display = np.clip(power_spectrum_filtered, p1, p99)
+                power_spectrum_display = 10 * np.log10(power_spectrum_display / p1)
+                colorbar_title = "Power (dB)"
+                z_min, z_max = 0, 10 * np.log10(p99 / p1)
+            else:
+                power_spectrum_display = power_spectrum_filtered
+                colorbar_title = "Power"
+                z_min, z_max = np.min(power_spectrum_display), np.max(power_spectrum_display)
+
             fig = go.Figure()
 
             fig.add_trace(go.Heatmap(
-                z=power_spectrum,
-                x=np.arange(power_spectrum.shape[1]),
-                y=frequencies,
+                z=power_spectrum_display,
+                x=time_axis,
+                y=frequencies_filtered,
                 colorscale='Viridis',
-                hovertemplate='Time: %{x}<br>Frequency: %{y:.1f} Hz<br>Power: %{z:.3f}<extra></extra>'
+                colorbar=dict(title=colorbar_title),
+                zmin=z_min,
+                zmax=z_max,
+                hovertemplate='Time: %{x:.4f}s<br>Frequency: %{y:.3f} Hz<br>' +
+                             ('Power: %{z:.1f} dB<extra></extra>' if use_log_scale else 'Power: %{z:.6f}<extra></extra>')
             ))
 
             fig.update_layout(
-                title=f"{title} - Segment {segment_id}" if segment_id else title,
-                xaxis_title="Time",
+                title=f"{title} - Segment {segment_id} ({frequencies_filtered[0]:.3f}-{max_freq:.0f} Hz)" if segment_id else f"{title} ({frequencies_filtered[0]:.3f}-{max_freq:.0f} Hz)",
+                xaxis_title="Time (s)",
                 yaxis_title="Frequency (Hz)",
                 template=self.layout_template,
-                height=400
+                height=500  # Увеличена высота для лучшей видимости
             )
+
+            # Set frequency axis range
+            fig.update_yaxes(range=[frequencies_filtered[0], max_freq])
 
             return fig
 
@@ -405,14 +592,41 @@ class SpectralVisualizer:
                     row=1, col=2
                 )
 
-            # Spectrogram
+            # Spectrogram with adaptive frequency scaling
             if 'stft' in analysis_result:
                 stft_result = analysis_result['stft']
+                # Convert to numpy arrays if needed
+                spectrogram = np.array(stft_result['spectrogram'])
+                times = np.array(stft_result['times'])
+                frequencies = np.array(stft_result['frequencies'])
+
+                # Apply adaptive frequency scaling similar to standalone spectrogram
+                energy_per_freq = np.mean(spectrogram, axis=1)
+                cumulative_energy = np.cumsum(energy_per_freq) / np.sum(energy_per_freq)
+                freq_95_percent = frequencies[np.argmax(cumulative_energy >= 0.95)]
+
+                # Set reasonable frequency limit for comprehensive view
+                if freq_95_percent < 500:
+                    max_freq = min(1000, frequencies[-1])
+                elif freq_95_percent < 2000:
+                    max_freq = min(2000, frequencies[-1])
+                else:
+                    max_freq = min(3000, frequencies[-1])  # Lower limit for comprehensive view
+
+                # Filter data
+                freq_mask = frequencies <= max_freq
+                frequencies_filtered = frequencies[freq_mask]
+                spectrogram_filtered = spectrogram[freq_mask, :]
+
+                # Use log scale for better visibility
+                spectrogram_db = 20 * np.log10(spectrogram_filtered + 1e-10)
+
                 fig.add_trace(
-                    go.Heatmap(z=stft_result['spectrogram'],
-                              x=stft_result['times'],
-                              y=stft_result['frequencies'],
-                              colorscale='Viridis'),
+                    go.Heatmap(z=spectrogram_db,
+                              x=times,
+                              y=frequencies_filtered,
+                              colorscale='Viridis',
+                              showscale=False),  # Hide colorbar in comprehensive view
                     row=2, col=1
                 )
 
@@ -436,7 +650,7 @@ class SpectralVisualizer:
                     row=3, col=1
                 )
 
-            # Wavelet
+            # Wavelet with improved scaling
             if 'wavelet' in analysis_result:
                 wavelet_result = analysis_result['wavelet']
                 power_spectrum = wavelet_result.get('power_spectrum')
@@ -453,13 +667,58 @@ class SpectralVisualizer:
                     power_spectrum = power_spectrum.reshape(1, -1)
 
                 if power_spectrum is not None and frequencies is not None:
-                    fig.add_trace(
-                        go.Heatmap(z=power_spectrum,
-                                  x=np.arange(power_spectrum.shape[1]),
-                                  y=frequencies,
-                                  colorscale='Viridis'),
-                        row=3, col=2
-                    )
+                    # Ensure we have valid arrays for processing
+                    try:
+                        # Apply adaptive frequency scaling similar to standalone wavelet plot
+                        energy_per_freq = np.mean(power_spectrum, axis=1)
+                        cumulative_energy = np.cumsum(energy_per_freq) / np.sum(energy_per_freq)
+                        freq_90_percent = frequencies[np.argmax(cumulative_energy >= 0.90)]
+
+                        # Set frequency limit for comprehensive view (more conservative)
+                        max_freq_limit = frequencies[-1] if len(frequencies) > 0 else 200
+                        if freq_90_percent < 10:
+                            max_freq = min(30, max_freq_limit)
+                        elif freq_90_percent < 50:
+                            max_freq = min(100, max_freq_limit)
+                        else:
+                            max_freq = min(200, max_freq_limit)
+
+                        # Filter data
+                        freq_mask = frequencies <= max_freq
+                        frequencies_filtered = frequencies[freq_mask]
+                        power_spectrum_filtered = power_spectrum[freq_mask, :]
+
+                        # Apply log scale for better visibility
+                        if np.max(power_spectrum_filtered) > 0:
+                            p1 = np.percentile(power_spectrum_filtered[power_spectrum_filtered > 0], 1)
+                            p99 = np.percentile(power_spectrum_filtered, 99)
+                            power_spectrum_display = np.clip(power_spectrum_filtered, p1, p99)
+                            power_spectrum_display = 10 * np.log10(power_spectrum_display / p1)
+                        else:
+                            power_spectrum_display = power_spectrum_filtered
+
+                        # Create proper time axis
+                        time_axis = np.arange(power_spectrum_display.shape[1]) / sample_rate * power_spectrum_display.shape[1] / len(frequencies_filtered)
+
+                        fig.add_trace(
+                            go.Heatmap(z=power_spectrum_display,
+                                      x=time_axis,
+                                      y=frequencies_filtered,
+                                      colorscale='Viridis',
+                                      showscale=False),  # Hide colorbar in comprehensive view
+                            row=3, col=2
+                        )
+                    except Exception as e:
+                        logger.error(f"Ошибка обработки вейвлет-данных в comprehensive plot: {e}")
+                        # Fallback to simple visualization
+                        fig.add_trace(
+                            go.Heatmap(z=power_spectrum,
+                                      x=np.arange(power_spectrum.shape[1]),
+                                      y=frequencies,
+                                      colorscale='Viridis',
+                                      showscale=False),
+                            row=3, col=2
+                        )
 
             # Update layout
             fig.update_layout(

@@ -26,6 +26,40 @@ class SpectralAnalyzer:
         self.sample_rate = sample_rate
         self.nyquist_freq = sample_rate / 2
 
+    def _ensure_json_serializable(self, obj):
+        """
+        Обеспечивает JSON-сериализуемость всех объектов
+
+        Args:
+            obj: Объект для преобразования
+
+        Returns:
+            JSON-сериализуемая версия объекта
+        """
+        if isinstance(obj, dict):
+            return {key: self._ensure_json_serializable(value) for key, value in obj.items()}
+        elif isinstance(obj, list):
+            return [self._ensure_json_serializable(item) for item in obj]
+        elif isinstance(obj, np.ndarray):
+            if np.iscomplexobj(obj):
+                # Для комплексных массивов берем модуль
+                return np.abs(obj).tolist()
+            else:
+                return obj.tolist()
+        elif isinstance(obj, (np.integer, np.floating)):
+            return obj.item()
+        elif isinstance(obj, complex):
+            # Для комплексных чисел берем модуль
+            return abs(obj)
+        elif isinstance(obj, (int, float, str, bool, type(None))):
+            return obj
+        else:
+            # Для всех остальных типов пытаемся преобразовать в строку
+            try:
+                return str(obj)
+            except:
+                return None
+
     def compute_fft(self, data: np.ndarray, window: str = 'hann') -> Dict:
         """
         Вычисление быстрого преобразования Фурье сигнала
@@ -88,6 +122,15 @@ class SpectralAnalyzer:
             Dictionary containing time, frequency, and spectrogram arrays
         """
         try:
+            logger.info(f"Вычисление STFT: данные = {len(data)}, частота = {self.sample_rate}, nperseg = {nperseg}")
+
+            # Проверяем размер данных
+            if len(data) < nperseg:
+                logger.warning(f"Данные слишком короткие ({len(data)} < {nperseg}), используем адаптированные параметры")
+                nperseg = min(len(data), 8)  # Минимальный размер окна
+                noverlap = max(0, nperseg // 2 - 1)  # Безопасное перекрытие
+                logger.info(f"Адаптированные параметры: nperseg = {nperseg}, noverlap = {noverlap}")
+
             # Compute STFT
             freqs, times, stft_result = signal.stft(
                 data,
@@ -99,6 +142,8 @@ class SpectralAnalyzer:
 
             # Convert to magnitude spectrogram
             spectrogram = np.abs(stft_result)
+
+            logger.info(f"STFT результат: частоты = {len(freqs)}, времена = {len(times)}, спектрограмма = {spectrogram.shape}")
 
             return {
                 'frequencies': freqs,
@@ -156,43 +201,72 @@ class SpectralAnalyzer:
             raise
 
     def compute_wavelet_analysis(self, data: np.ndarray,
-                               wavelet: str = 'db4',
+                               wavelet: str = 'morlet',
                                scales: Optional[np.ndarray] = None) -> Dict:
         """
-        Compute continuous wavelet transform
+        Compute continuous wavelet transform using improved implementation
 
         Args:
             data: Input time series data
-            wavelet: Wavelet type ('db4', 'haar', 'sym4', etc.)
-            scales: Array of scales to analyze (default: logarithmic scale)
+            wavelet: Wavelet type ('morlet', 'db4', 'haar', 'sym4', etc.)
+            scales: Array of scales to analyze (default: optimized for signal analysis)
 
         Returns:
             Dictionary containing wavelet coefficients and scales
         """
         try:
             if scales is None:
-                # Create logarithmic scale array
-                scales = np.logspace(1, np.log2(len(data)/4), 50)
+                # Create more reasonable scale array for electrical signal analysis
+                # Focus on frequencies from 0.1 Hz to 1000 Hz
+                min_freq = 0.1  # Hz
+                max_freq = min(1000.0, self.sample_rate / 4)  # Hz, limited by Nyquist/4
+
+                # Create logarithmic frequency array
+                freqs = np.logspace(np.log10(min_freq), np.log10(max_freq), 50)
+
+                # Convert frequencies to scales for Morlet wavelet
+                # For Morlet wavelet: f = fc / (scale * dt), where fc ≈ 1 for Morlet
+                dt = 1.0 / self.sample_rate
+                scales = 1.0 / (freqs * dt)
 
             # Compute continuous wavelet transform
-            # Use a simpler approach that works with different pywt versions
             try:
-                coefficients, frequencies = pywt.cwt(data, scales, wavelet, 1/self.sample_rate)
-            except:
-                # Fallback: create a simple wavelet-like analysis using FFT
-                coefficients = np.zeros((len(scales), len(data)))
-                frequencies = 1.0 / scales
-                for i, scale in enumerate(scales):
-                    # Simple bandpass filter approach
-                    fft_data = np.fft.fft(data)
-                    freq = np.fft.fftfreq(len(data), 1/self.sample_rate)
-                    # Apply simple bandpass filter
-                    mask = np.abs(freq) < (1.0 / scale)
-                    fft_filtered = fft_data * mask
-                    coefficients[i, :] = np.real(np.fft.ifft(fft_filtered))
+                # Try to use pywt.cwt with proper parameters
+                coefficients, frequencies = pywt.cwt(data, scales, wavelet, dt)
+                logger.info(f"Использован pywt.cwt для вейвлет-анализа")
+            except Exception as e:
+                logger.warning(f"pywt.cwt не работает ({e}), используем улучшенный fallback")
+                # Improved fallback using proper frequency-domain filtering
+                coefficients = np.zeros((len(scales), len(data)), dtype=complex)
+                frequencies = 1.0 / (scales * dt)  # Convert scales to frequencies
+
+                # Get FFT of the signal
+                fft_data = np.fft.fft(data)
+                freq_axis = np.fft.fftfreq(len(data), dt)
+
+                for i, target_freq in enumerate(frequencies):
+                    # Create a Gaussian filter centered at target frequency
+                    sigma = target_freq * 0.1  # Bandwidth control
+                    gaussian_filter = np.exp(-0.5 * ((freq_axis - target_freq) / sigma) ** 2)
+                    gaussian_filter += np.exp(-0.5 * ((freq_axis + target_freq) / sigma) ** 2)
+
+                    # Apply filter and inverse FFT
+                    filtered_fft = fft_data * gaussian_filter
+                    coefficients[i, :] = np.fft.ifft(filtered_fft)
+
+                logger.info(f"Использован улучшенный fallback для вейвлет-анализа")
+
+            # Sort by frequency (ascending order)
+            freq_sort_idx = np.argsort(frequencies)
+            frequencies = frequencies[freq_sort_idx]
+            coefficients = coefficients[freq_sort_idx, :]
+            scales = scales[freq_sort_idx]
 
             # Compute wavelet power spectrum
             power_spectrum = np.abs(coefficients) ** 2
+
+            logger.info(f"Вейвлет-анализ: частоты {frequencies[0]:.3f}-{frequencies[-1]:.3f} Гц, "
+                       f"power spectrum {np.min(power_spectrum):.6f}-{np.max(power_spectrum):.6f}")
 
             return {
                 'coefficients': coefficients,
@@ -298,28 +372,96 @@ class SpectralAnalyzer:
             Dictionary containing all analysis results
         """
         try:
+            # Проверяем валидность данных
+            if len(data) < 8:
+                logger.error(f"Данные слишком короткие для анализа: {len(data)} точек (минимум 8)")
+                raise ValueError(f"Недостаточно данных для анализа: {len(data)} точек")
+
+            logger.info(f"Начало анализа сегмента: {len(data)} точек")
             results = {}
 
+            # Add original data to results for visualization
+            results['data'] = data.tolist()
+
             # FFT analysis
-            results['fft'] = self.compute_fft(data)
+            fft_result = self.compute_fft(data)
+            results['fft'] = {
+                'frequencies': fft_result['frequencies'].tolist(),
+                'magnitude': fft_result['magnitude'].tolist(),
+                'phase': fft_result['phase'].tolist(),
+                'power_spectrum': fft_result['power_spectrum'].tolist()
+            }
 
             # STFT analysis
-            results['stft'] = self.compute_stft(data)
+            stft_result = self.compute_stft(data)
+            results['stft'] = {
+                'frequencies': stft_result['frequencies'].tolist(),
+                'times': stft_result['times'].tolist(),
+                'spectrogram': stft_result['spectrogram'].tolist(),
+                'magnitude_db': stft_result['magnitude_db'].tolist()
+            }
 
             # Envelope analysis
-            results['envelope'] = self.compute_envelope_analysis(data)
+            envelope_result = self.compute_envelope_analysis(data)
+            results['envelope'] = {
+                'envelope': envelope_result['envelope'].tolist(),
+                'raw_envelope': envelope_result['raw_envelope'].tolist(),
+                'envelope_fft': {
+                    'frequencies': envelope_result['envelope_fft']['frequencies'].tolist(),
+                    'magnitude': envelope_result['envelope_fft']['magnitude'].tolist(),
+                    'phase': envelope_result['envelope_fft']['phase'].tolist(),
+                    'power_spectrum': envelope_result['envelope_fft']['power_spectrum'].tolist()
+                },
+                'cutoff_freq': envelope_result['cutoff_freq']
+            }
 
             # Wavelet analysis
-            results['wavelet'] = self.compute_wavelet_analysis(data)
+            wavelet_result = self.compute_wavelet_analysis(data)
+
+            # Обработка комплексных коэффициентов для сериализации
+            coefficients = wavelet_result['coefficients']
+            if np.iscomplexobj(coefficients):
+                # Сохраняем только модуль (амплитуду) комплексных коэффициентов
+                coefficients_serializable = np.abs(coefficients).tolist()
+                logger.info("Вейвлет коэффициенты преобразованы из комплексных в модуль для сериализации")
+            else:
+                coefficients_serializable = coefficients.tolist()
+
+            results['wavelet'] = {
+                'coefficients': coefficients_serializable,
+                'scales': wavelet_result['scales'].tolist(),
+                'frequencies': wavelet_result['frequencies'].tolist(),
+                'power_spectrum': wavelet_result['power_spectrum'].tolist(),
+                'wavelet': wavelet_result['wavelet']
+            }
 
             # Peak detection
-            results['peaks'] = self.detect_peaks(
-                results['fft']['frequencies'],
-                results['fft']['magnitude']
+            peaks_result = self.detect_peaks(
+                fft_result['frequencies'],
+                fft_result['magnitude']
             )
+            results['peaks'] = {
+                'peak_indices': peaks_result['peak_indices'].tolist(),
+                'peak_frequencies': peaks_result['peak_frequencies'].tolist(),
+                'peak_magnitudes': peaks_result['peak_magnitudes'].tolist(),
+                'peak_properties': peaks_result['peak_properties']
+            }
 
             # Statistical features
             results['statistics'] = self.compute_statistical_features(data)
+
+            # Обеспечиваем JSON-сериализуемость всех результатов
+            logger.info("Проверка и обеспечение JSON-сериализуемости результатов...")
+            results = self._ensure_json_serializable(results)
+
+            # Финальная проверка сериализации
+            try:
+                import json
+                json.dumps(results)
+                logger.info("✅ Все результаты анализа JSON-сериализуемы")
+            except Exception as json_error:
+                logger.error(f"❌ Ошибка финальной сериализации: {json_error}")
+                raise ValueError(f"Результаты анализа не могут быть сериализованы: {json_error}")
 
             return results
 

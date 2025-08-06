@@ -12,10 +12,10 @@ import os
 import logging
 from typing import Dict, List, Optional
 
-from .data_loader import DataLoader, MultiFileDataLoader
-from .spectral_analysis import SpectralAnalyzer
-from .label_manager import LabelManager
-from .visualization import SpectralVisualizer
+from data_loader import DataLoader, MultiFileDataLoader
+from spectral_analysis import SpectralAnalyzer
+from label_manager import LabelManager
+from visualization import SpectralVisualizer
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 # Initialize components
 data_loader = None
-spectral_analyzer = SpectralAnalyzer(sample_rate=25600.0)
+spectral_analyzer = SpectralAnalyzer(sample_rate=25600.0)  # Частота дискретизации 25.6 кГц
 label_manager = LabelManager(output_file="app/data/labeled_data.h5")
 visualizer = SpectralVisualizer()
 
@@ -238,12 +238,15 @@ app.layout = dbc.Container([
 def update_segment_dropdown(selected_file):
     """Обновление выпадающего списка сегментов при выборе файла"""
     if not selected_file or not os.path.exists(selected_file):
+        logger.info(f"Файл не выбран или не существует: {selected_file}")
         return [], None
 
     try:
         global data_loader
+        logger.info(f"Инициализация DataLoader для файла: {selected_file}")
         data_loader = DataLoader(selected_file)
         segment_ids = data_loader.get_all_segment_ids()
+        logger.info(f"Загружено сегментов: {len(segment_ids)}")
 
         options = [{'label': seg_id, 'value': seg_id} for seg_id in segment_ids]
         return options, segment_ids[0] if segment_ids else None
@@ -262,10 +265,12 @@ def update_segment_dropdown(selected_file):
 def load_segment_data(n_clicks, segment_id, file_path):
     """Загрузка данных сегмента при нажатии кнопки загрузки или выборе сегмента"""
     if not segment_id or not file_path or not data_loader:
+        logger.info(f"Загрузка сегмента: segment_id={segment_id}, file_path={file_path}, data_loader={data_loader is not None}")
         return None, None
 
     try:
         data = data_loader.get_segment_data(segment_id)
+        logger.info(f"Загружены данные сегмента {segment_id}: размер = {len(data)}")
         return data.tolist(), segment_id
 
     except Exception as e:
@@ -279,16 +284,37 @@ def load_segment_data(n_clicks, segment_id, file_path):
 )
 def analyze_segment(n_clicks, data):
     """Выполнение спектрального анализа текущего сегмента"""
+    logger.info(f"Callback analyze_segment вызван: n_clicks={n_clicks}, data={len(data) if data else 0}")
+
     if not n_clicks or not data:
+        logger.info("Анализ не выполнен: нет кликов или данных")
         return None
 
     try:
         data_array = np.array(data)
+        logger.info(f"Анализ сегмента: размер данных = {len(data_array)}, тип = {type(data_array)}")
         analysis_results = spectral_analyzer.analyze_segment(data_array)
+        logger.info(f"Анализ завершен: получено {len(analysis_results)} результатов")
+        logger.info(f"Ключи результатов: {list(analysis_results.keys())}")
+
+        # Проверим основные компоненты
+        for key in ['fft', 'stft', 'envelope', 'wavelet']:
+            if key in analysis_results:
+                logger.info(f"  {key}: найден, ключи = {list(analysis_results[key].keys())}")
+            else:
+                logger.warning(f"  {key}: отсутствует!")
+
+        # Проверим размер данных для Store
+        import sys
+        data_size = sys.getsizeof(str(analysis_results))
+        logger.info(f"Размер данных для Store: {data_size} байт")
+        logger.info(f"Возвращаем результаты анализа с {len(analysis_results)} компонентами")
         return analysis_results
 
     except Exception as e:
         logger.error(f"Ошибка анализа сегмента: {e}")
+        import traceback
+        logger.error(f"Трассировка: {traceback.format_exc()}")
         return None
 
 @app.callback(
@@ -299,27 +325,39 @@ def analyze_segment(n_clicks, data):
      Output('wavelet-plot', 'figure'),
      Output('comprehensive-plot', 'figure')],
     [Input('analysis-results-store', 'data'),
-     Input('current-segment-id-store', 'data')]
+     Input('current-segment-id-store', 'data'),
+     Input('current-data-store', 'data')]
 )
-def update_plots(analysis_results, segment_id):
+def update_plots(analysis_results, segment_id, current_data):
     """Обновление всех графиков визуализации"""
+    logger.info(f"update_plots вызван: analysis_results={analysis_results is not None}, segment_id={segment_id}, current_data={len(current_data) if current_data else 0}")
+    logger.info(f"Тип analysis_results: {type(analysis_results)}, значение: {analysis_results}")
+
     if not analysis_results:
+        logger.info("Обновление графиков: нет результатов анализа")
         # Возврат пустых графиков
-        empty_fig = go.Figure().add_annotation(text="Данные недоступны", xref="paper", yref="paper")
+        empty_fig = go.Figure()
+        empty_fig.add_annotation(
+            text="Нажмите 'Анализировать сегмент' для отображения данных",
+            xref="paper", yref="paper",
+            x=0.5, y=0.5, showarrow=False,
+            font=dict(size=16)
+        )
         return [empty_fig] * 6
 
     try:
+        logger.info(f"Обновление графиков: сегмент {segment_id}, данные = {len(current_data) if current_data else 0}")
+
         # Добавление данных к результатам анализа для комплексного графика
-        if 'current-data-store' in callback_context.inputs:
-            data = callback_context.inputs['current-data-store']
-            if data:
-                analysis_results['data'] = np.array(data)
+        if current_data and 'data' not in analysis_results:
+            analysis_results['data'] = current_data
 
         # Создание отдельных графиков с правильной обработкой ошибок
         try:
             time_series_fig = visualizer.create_time_series_plot(
-                np.array(analysis_results.get('data', [])), segment_id=segment_id
+                np.array(current_data) if current_data else np.array([]), segment_id=segment_id
             )
+            logger.info("График временного ряда создан успешно")
         except Exception as e:
             logger.error(f"Ошибка создания графика временного ряда: {e}")
             time_series_fig = go.Figure().add_annotation(text="Ошибка загрузки временного ряда", xref="paper", yref="paper")
@@ -333,9 +371,12 @@ def update_plots(analysis_results, segment_id):
             fft_fig = go.Figure().add_annotation(text="Ошибка загрузки спектра Фурье", xref="paper", yref="paper")
 
         try:
+            stft_data = analysis_results.get('stft')
+            logger.info(f"Создание спектрограммы: STFT данные = {type(stft_data)}, ключи = {list(stft_data.keys()) if stft_data else None}")
             spectrogram_fig = visualizer.create_spectrogram_plot(
-                analysis_results.get('stft'), segment_id=segment_id
+                stft_data, segment_id=segment_id
             )
+            logger.info("График спектрограммы создан успешно")
         except Exception as e:
             logger.error(f"Ошибка создания графика спектрограммы: {e}")
             spectrogram_fig = go.Figure().add_annotation(text="Ошибка загрузки спектрограммы", xref="paper", yref="paper")
