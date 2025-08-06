@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main Entry Point for Data Analysis & Labeling Service
+Главная точка входа для сервиса анализа и маркировки данных
 """
 
 import os
@@ -8,12 +8,12 @@ import sys
 import logging
 from pathlib import Path
 
-# Add the current directory and app directory to the Python path
+# Добавление текущей директории и директории app в путь Python
 current_dir = Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 sys.path.insert(0, str(current_dir / "app"))
 
-# Configure logging
+# Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -26,26 +26,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def main():
-    """Main function to run the application"""
+    """Главная функция для запуска приложения"""
     try:
-        logger.info("Starting Data Analysis & Labeling Service")
+        logger.info("Запуск сервиса анализа и маркировки данных")
 
-        # Import and run the Dash app
+        # Импорт и запуск Dash приложения
         from app.dash_app import app
 
-        logger.info("Dash application initialized successfully")
-        logger.info("Starting web server on http://0.0.0.0:8050")
+        logger.info("Dash приложение успешно инициализировано")
+        logger.info("Запуск веб-сервера на http://0.0.0.0:8050")
 
-        # Run the app
+        # Запуск приложения
         app.run(
-            debug=False,  # Set to False for production
+            debug=True,  # Установить в False для продакшена
             host='0.0.0.0',
             port=8050,
-            threaded=True
+            threaded=True,
+			dev_tools_ui=True
         )
 
     except Exception as e:
-        logger.error(f"Error starting application: {e}")
+        logger.error(f"Ошибка запуска приложения: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":

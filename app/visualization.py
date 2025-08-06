@@ -1,6 +1,6 @@
 """
-Visualization Module
-Provides interactive Plotly-based visualizations for spectral analysis
+Модуль визуализации
+Предоставляет интерактивные визуализации на основе Plotly для спектрального анализа
 """
 
 import plotly.graph_objects as go
@@ -14,10 +14,10 @@ logger = logging.getLogger(__name__)
 
 
 class SpectralVisualizer:
-    """Class for creating interactive spectral analysis visualizations"""
+    """Класс для создания интерактивных визуализаций спектрального анализа"""
 
     def __init__(self):
-        """Initialize SpectralVisualizer"""
+        """Инициализация SpectralVisualizer"""
         self.colors = px.colors.qualitative.Set1
         self.layout_template = 'plotly_white'
 
@@ -26,16 +26,16 @@ class SpectralVisualizer:
                                title: str = "Временной ряд",
                                segment_id: str = "") -> go.Figure:
         """
-        Create time series plot
+        Создание графика временного ряда
 
         Args:
-            data: Time series data
-            sample_rate: Sampling rate in Hz
-            title: Plot title
-            segment_id: Segment ID for display
+            data: Данные временного ряда
+            sample_rate: Частота дискретизации в Гц
+            title: Заголовок графика
+            segment_id: ID сегмента для отображения
 
         Returns:
-            Plotly figure object
+            Объект фигуры Plotly
         """
         try:
             time_axis = np.arange(len(data)) / sample_rate
@@ -64,7 +64,7 @@ class SpectralVisualizer:
             return fig
 
         except Exception as e:
-            logger.error(f"Error creating time series plot: {e}")
+            logger.error(f"Ошибка создания графика временного ряда: {e}")
             raise
 
     def create_fft_plot(self, fft_result: Dict,
@@ -125,7 +125,7 @@ class SpectralVisualizer:
             return fig
 
         except Exception as e:
-            logger.error(f"Error creating FFT plot: {e}")
+            logger.error(f"Ошибка создания графика FFT: {e}")
             raise
 
     def create_spectrogram_plot(self, stft_result: Dict,
@@ -168,7 +168,7 @@ class SpectralVisualizer:
             return fig
 
         except Exception as e:
-            logger.error(f"Error creating spectrogram plot: {e}")
+            logger.error(f"Ошибка создания графика спектрограммы: {e}")
             raise
 
     def create_envelope_plot(self, envelope_result: Dict,
@@ -237,7 +237,7 @@ class SpectralVisualizer:
             return fig
 
         except Exception as e:
-            logger.error(f"Error creating envelope plot: {e}")
+            logger.error(f"Ошибка создания графика огибающей: {e}")
             raise
 
     def create_wavelet_plot(self, wavelet_result: Dict,
@@ -323,7 +323,7 @@ class SpectralVisualizer:
             return fig
 
         except Exception as e:
-            logger.error(f"Error creating wavelet plot: {e}")
+            logger.error(f"Ошибка создания графика вейвлет-анализа: {e}")
             # Return empty figure with error message
             fig = go.Figure()
             fig.add_annotation(
@@ -486,7 +486,7 @@ class SpectralVisualizer:
             return fig
 
         except Exception as e:
-            logger.error(f"Error creating comprehensive analysis plot: {e}")
+            logger.error(f"Ошибка создания графика комплексного анализа: {e}")
             # Return empty figure with error message
             fig = go.Figure()
             fig.add_annotation(
@@ -553,7 +553,7 @@ class SpectralVisualizer:
             return fig
 
         except Exception as e:
-            logger.error(f"Error creating statistics dashboard: {e}")
+            logger.error(f"Ошибка создания панели статистики: {e}")
             raise
 
     def create_label_statistics_plot(self, label_stats: Dict) -> go.Figure:
@@ -631,5 +631,5 @@ class SpectralVisualizer:
             return fig
 
         except Exception as e:
-            logger.error(f"Error creating label statistics plot: {e}")
+            logger.error(f"Ошибка создания графика статистики меток: {e}")
             raise

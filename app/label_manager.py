@@ -1,6 +1,6 @@
 """
-Label Manager Module
-Handles saving and loading of segment labels and annotations
+Модуль управления метками
+Обрабатывает сохранение и загрузку меток сегментов и аннотаций
 """
 
 import h5py
@@ -16,9 +16,9 @@ logger = logging.getLogger(__name__)
 
 
 class LabelManager:
-    """Class for managing segment labels and annotations"""
+    """Класс для управления метками сегментов и аннотациями"""
 
-    # Predefined defect categories
+    # Предопределенные категории дефектов
     DEFECT_CATEGORIES = [
         "Нормальное состояние",
         "Дефект наружного кольца",
@@ -30,7 +30,7 @@ class LabelManager:
         "Другое"
     ]
 
-    # Defect severity levels
+    # Уровни серьезности дефектов
     SEVERITY_LEVELS = [
         "Начальная",
         "Средняя",
@@ -40,10 +40,10 @@ class LabelManager:
 
     def __init__(self, output_file: str = "labeled_data.h5"):
         """
-        Initialize LabelManager
+        Инициализация LabelManager
 
         Args:
-            output_file: Path to the HDF5 file for saving labels
+            output_file: Путь к HDF5 файлу для сохранения меток
         """
         self.output_file = output_file
         self.labels = {}
@@ -51,46 +51,46 @@ class LabelManager:
         self._load_existing_labels()
 
     def _load_existing_labels(self):
-        """Load existing labels from the output file if it exists"""
+        """Загрузка существующих меток из выходного файла, если он существует"""
         if os.path.exists(self.output_file):
             try:
                 with h5py.File(self.output_file, 'r') as f:
-                    # Load labels
+                    # Загрузка меток
                     if 'labels' in f:
                         for segment_id in f['labels'].keys():
                             self.labels[segment_id] = dict(f['labels'][segment_id].attrs)
 
-                    # Load metadata
+                    # Загрузка метаданных
                     if 'metadata' in f:
                         self.metadata = dict(f['metadata'].attrs)
 
-                logger.info(f"Loaded {len(self.labels)} existing labels from {self.output_file}")
+                logger.info(f"Загружено {len(self.labels)} существующих меток из {self.output_file}")
 
             except Exception as e:
-                logger.error(f"Error loading existing labels: {e}")
-                # Create new file if loading fails
+                logger.error(f"Ошибка загрузки существующих меток: {e}")
+                # Создание нового файла, если загрузка не удалась
                 self._create_new_file()
         else:
             self._create_new_file()
 
     def _create_new_file(self):
-        """Create a new HDF5 file for labels"""
+        """Создание нового HDF5 файла для меток"""
         try:
             with h5py.File(self.output_file, 'w') as f:
-                # Create groups
+                # Создание групп
                 f.create_group('labels')
                 f.create_group('metadata')
 
-                # Set metadata
+                # Установка метаданных
                 f['metadata'].attrs['created'] = datetime.now().isoformat()
                 f['metadata'].attrs['version'] = '1.0'
                 f['metadata'].attrs['defect_categories'] = json.dumps(self.DEFECT_CATEGORIES)
                 f['metadata'].attrs['severity_levels'] = json.dumps(self.SEVERITY_LEVELS)
 
-            logger.info(f"Created new label file: {self.output_file}")
+            logger.info(f"Создан новый файл меток: {self.output_file}")
 
         except Exception as e:
-            logger.error(f"Error creating new label file: {e}")
+            logger.error(f"Ошибка создания нового файла меток: {e}")
             raise
 
     def add_label(self, segment_id: str,
@@ -146,11 +146,11 @@ class LabelManager:
             # Save to file
             self._save_labels()
 
-            logger.info(f"Added/updated label for segment {segment_id}: {defect_category} - {severity}")
+            logger.info(f"Добавлена/обновлена метка для сегмента {segment_id}: {defect_category} - {severity}")
             return True
 
         except Exception as e:
-            logger.error(f"Error adding label for segment {segment_id}: {e}")
+            logger.error(f"Ошибка добавления метки для сегмента {segment_id}: {e}")
             return False
 
     def get_label(self, segment_id: str) -> Optional[Dict]:
@@ -183,12 +183,12 @@ class LabelManager:
             if segment_id in self.labels:
                 del self.labels[segment_id]
                 self._save_labels()
-                logger.info(f"Removed label for segment {segment_id}")
+                logger.info(f"Удалена метка для сегмента {segment_id}")
                 return True
             return False
 
         except Exception as e:
-            logger.error(f"Error removing label for segment {segment_id}: {e}")
+            logger.error(f"Ошибка удаления метки для сегмента {segment_id}: {e}")
             return False
 
     def get_labels_by_category(self, defect_category: str) -> Dict[str, Dict]:
@@ -264,7 +264,7 @@ class LabelManager:
         """
         try:
             if not self.labels:
-                logger.warning("No labels to export")
+                logger.warning("Нет меток для экспорта")
                 return False
 
             # Convert to DataFrame
@@ -279,11 +279,11 @@ class LabelManager:
             df = pd.DataFrame(data)
             df.to_csv(output_path, index=False)
 
-            logger.info(f"Exported {len(self.labels)} labels to {output_path}")
+            logger.info(f"Экспортировано {len(self.labels)} меток в {output_path}")
             return True
 
         except Exception as e:
-            logger.error(f"Error exporting labels to CSV: {e}")
+            logger.error(f"Ошибка экспорта меток в CSV: {e}")
             return False
 
     def import_from_csv(self, input_path: str, overwrite: bool = False) -> bool:
@@ -322,11 +322,11 @@ class LabelManager:
                 if success:
                     imported_count += 1
 
-            logger.info(f"Imported {imported_count} labels from {input_path}")
+            logger.info(f"Импортировано {imported_count} меток из {input_path}")
             return True
 
         except Exception as e:
-            logger.error(f"Error importing labels from CSV: {e}")
+            logger.error(f"Ошибка импорта меток из CSV: {e}")
             return False
 
     def _save_labels(self):
@@ -351,7 +351,7 @@ class LabelManager:
                 f['metadata'].attrs['total_labels'] = len(self.labels)
 
         except Exception as e:
-            logger.error(f"Error saving labels: {e}")
+            logger.error(f"Ошибка сохранения меток: {e}")
             raise
 
     def backup_labels(self, backup_path: str) -> bool:
@@ -367,11 +367,11 @@ class LabelManager:
         try:
             import shutil
             shutil.copy2(self.output_file, backup_path)
-            logger.info(f"Created backup at {backup_path}")
+            logger.info(f"Создана резервная копия в {backup_path}")
             return True
 
         except Exception as e:
-            logger.error(f"Error creating backup: {e}")
+            logger.error(f"Ошибка создания резервной копии: {e}")
             return False
 
     def get_labeling_progress(self, total_segments: int) -> Dict:

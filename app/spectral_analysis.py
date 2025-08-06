@@ -1,6 +1,6 @@
 """
-Spectral Analysis Module
-Provides FFT, STFT, envelope analysis, and wavelet analysis for signal processing
+Модуль спектрального анализа
+Предоставляет FFT, STFT, анализ огибающей и вейвлет-анализ для обработки сигналов
 """
 
 import numpy as np
@@ -14,31 +14,31 @@ logger = logging.getLogger(__name__)
 
 
 class SpectralAnalyzer:
-    """Class for performing spectral analysis on time series data"""
+    """Класс для выполнения спектрального анализа временных рядов"""
 
-    def __init__(self, sample_rate: float = 1000.0):
+    def __init__(self, sample_rate: float = 25600.0):
         """
-        Initialize SpectralAnalyzer
+        Инициализация SpectralAnalyzer
 
         Args:
-            sample_rate: Sampling rate in Hz (default: 1000 Hz)
+            sample_rate: Частота дискретизации в Гц (по умолчанию: 25600 Гц)
         """
         self.sample_rate = sample_rate
         self.nyquist_freq = sample_rate / 2
 
     def compute_fft(self, data: np.ndarray, window: str = 'hann') -> Dict:
         """
-        Compute Fast Fourier Transform of the signal
+        Вычисление быстрого преобразования Фурье сигнала
 
         Args:
-            data: Input time series data
-            window: Window function to apply ('hann', 'hamming', 'blackman', etc.)
+            data: Входные данные временного ряда
+            window: Функция окна для применения ('hann', 'hamming', 'blackman', и т.д.)
 
         Returns:
-            Dictionary containing frequency array and magnitude spectrum
+            Словарь, содержащий массив частот и спектр амплитуд
         """
         try:
-            # Apply window function
+            # Применение функции окна
             if window == 'hann':
                 windowed_data = data * signal.windows.hann(len(data))
             elif window == 'hamming':
@@ -48,14 +48,14 @@ class SpectralAnalyzer:
             else:
                 windowed_data = data
 
-            # Compute FFT
+            # Вычисление FFT
             fft_result = fft.fft(windowed_data)
             fft_magnitude = np.abs(fft_result)
 
-            # Create frequency array
+            # Создание массива частот
             freqs = fft.fftfreq(len(data), 1/self.sample_rate)
 
-            # Only return positive frequencies
+            # Возврат только положительных частот
             positive_freq_mask = freqs >= 0
             freqs = freqs[positive_freq_mask]
             fft_magnitude = fft_magnitude[positive_freq_mask]
@@ -68,7 +68,7 @@ class SpectralAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"Error computing FFT: {e}")
+            logger.error(f"Ошибка вычисления FFT: {e}")
             raise
 
     def compute_stft(self, data: np.ndarray,
@@ -108,7 +108,7 @@ class SpectralAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"Error computing STFT: {e}")
+            logger.error(f"Ошибка вычисления STFT: {e}")
             raise
 
     def compute_envelope_analysis(self, data: np.ndarray,
@@ -152,7 +152,7 @@ class SpectralAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"Error computing envelope analysis: {e}")
+            logger.error(f"Ошибка вычисления анализа огибающей: {e}")
             raise
 
     def compute_wavelet_analysis(self, data: np.ndarray,
@@ -203,7 +203,7 @@ class SpectralAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"Error computing wavelet analysis: {e}")
+            logger.error(f"Ошибка вычисления вейвлет-анализа: {e}")
             raise
 
     def detect_peaks(self, frequencies: np.ndarray,
@@ -244,7 +244,7 @@ class SpectralAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"Error detecting peaks: {e}")
+            logger.error(f"Ошибка обнаружения пиков: {e}")
             raise
 
     def compute_statistical_features(self, data: np.ndarray) -> Dict:
@@ -284,7 +284,7 @@ class SpectralAnalyzer:
             }
 
         except Exception as e:
-            logger.error(f"Error computing statistical features: {e}")
+            logger.error(f"Ошибка вычисления статистических характеристик: {e}")
             raise
 
     def analyze_segment(self, data: np.ndarray) -> Dict:
@@ -324,5 +324,5 @@ class SpectralAnalyzer:
             return results
 
         except Exception as e:
-            logger.error(f"Error analyzing segment: {e}")
+            logger.error(f"Ошибка анализа сегмента: {e}")
             raise

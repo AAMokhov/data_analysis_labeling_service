@@ -18,22 +18,22 @@ from .label_manager import LabelManager
 from .visualization import SpectralVisualizer
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Initialize components
 data_loader = None
-spectral_analyzer = SpectralAnalyzer(sample_rate=1000.0)
+spectral_analyzer = SpectralAnalyzer(sample_rate=25600.0)
 label_manager = LabelManager(output_file="app/data/labeled_data.h5")
 visualizer = SpectralVisualizer()
 
-# Initialize Dash app
+# Инициализация Dash приложения
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.title = "Сервис анализа и маркировки данных"
 
-# App layout
+# Макет приложения
 app.layout = dbc.Container([
-    # Header
+    # Заголовок
     dbc.Row([
         dbc.Col([
             html.H1("Сервис анализа и маркировки данных", className="text-center mb-4"),
@@ -41,7 +41,7 @@ app.layout = dbc.Container([
         ])
     ]),
 
-    # File Selection and Controls
+    # Выбор файла и управление
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -53,10 +53,11 @@ app.layout = dbc.Container([
                             dcc.Dropdown(
                                 id='file-dropdown',
                                 options=[
-                                    {'label': 'processed_current_1.h5', 'value': 'app/data/processed_current_1.h5'},
-                                    {'label': 'processed_current_2.h5', 'value': 'app/data/processed_current_2.h5'},
-                                    {'label': 'processed_current_3.h5', 'value': 'app/data/processed_current_3.h5'},
-                                    {'label': 'processed_data.h5', 'value': 'app/data/processed_data.h5'}
+                                    {'label': 'processed_current_1.h5', 'value': 'app/data/processed_current_1.h5'}
+									# ,
+                                    # {'label': 'processed_current_2.h5', 'value': 'app/data/processed_current_2.h5'},
+                                    # {'label': 'processed_current_3.h5', 'value': 'app/data/processed_current_3.h5'},
+                                    # {'label': 'processed_data.h5', 'value': 'app/data/processed_data.h5'}
                                 ],
                                 value='app/data/processed_current_1.h5',
                                 placeholder="Выберите файл данных..."
@@ -75,7 +76,7 @@ app.layout = dbc.Container([
         ])
     ], className="mb-4"),
 
-    # Analysis Controls
+    # Управление анализом
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -93,6 +94,37 @@ app.layout = dbc.Container([
             ])
         ])
     ], className="mb-4"),
+
+    # Вкладки визуализации
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader("Визуализация анализа"),
+                dbc.CardBody([
+                    dcc.Tabs([
+                        dcc.Tab(label="Временной ряд", children=[
+                            dcc.Graph(id="time-series-plot")
+                        ]),
+                        dcc.Tab(label="Спектр Фурье", children=[
+                            dcc.Graph(id="fft-plot")
+                        ]),
+                        dcc.Tab(label="Спектрограмма", children=[
+                            dcc.Graph(id="spectrogram-plot")
+                        ]),
+                        dcc.Tab(label="Анализ огибающей", children=[
+                            dcc.Graph(id="envelope-plot")
+                        ]),
+                        dcc.Tab(label="Вейвлет-анализ", children=[
+                            dcc.Graph(id="wavelet-plot")
+                        ]),
+                        dcc.Tab(label="Комплексный вид", children=[
+                            dcc.Graph(id="comprehensive-plot")
+                        ])
+                    ])
+                ])
+            ])
+        ])
+    ]),
 
     # Labeling Interface
     dbc.Row([
@@ -183,59 +215,28 @@ app.layout = dbc.Container([
         ], width=6)
     ], className="mb-4"),
 
-    # Visualization Tabs
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardHeader("Визуализация анализа"),
-                dbc.CardBody([
-                    dcc.Tabs([
-                        dcc.Tab(label="Временной ряд", children=[
-                            dcc.Graph(id="time-series-plot")
-                        ]),
-                        dcc.Tab(label="Спектр Фурье", children=[
-                            dcc.Graph(id="fft-plot")
-                        ]),
-                        dcc.Tab(label="Спектрограмма", children=[
-                            dcc.Graph(id="spectrogram-plot")
-                        ]),
-                        dcc.Tab(label="Анализ огибающей", children=[
-                            dcc.Graph(id="envelope-plot")
-                        ]),
-                        dcc.Tab(label="Вейвлет-анализ", children=[
-                            dcc.Graph(id="wavelet-plot")
-                        ]),
-                        dcc.Tab(label="Комплексный вид", children=[
-                            dcc.Graph(id="comprehensive-plot")
-                        ])
-                    ])
-                ])
-            ])
-        ])
-    ]),
-
-    # Hidden divs for storing data
+    # Скрытые элементы для хранения данных
     dcc.Store(id='current-data-store'),
     dcc.Store(id='analysis-results-store'),
     dcc.Store(id='current-segment-id-store'),
 
-    # Interval component for auto-refresh
+    # Интервальный компонент для автообновления
     dcc.Interval(
         id='interval-component',
-        interval=30*1000,  # 30 seconds
+        interval=30*1000,  # 30 секунд
         n_intervals=0
     )
 
 ], fluid=True)
 
-# Callbacks
+# Обратные вызовы
 @app.callback(
     [Output('segment-dropdown', 'options'),
      Output('segment-dropdown', 'value')],
     [Input('file-dropdown', 'value')]
 )
 def update_segment_dropdown(selected_file):
-    """Update segment dropdown when file is selected"""
+    """Обновление выпадающего списка сегментов при выборе файла"""
     if not selected_file or not os.path.exists(selected_file):
         return [], None
 
@@ -248,7 +249,7 @@ def update_segment_dropdown(selected_file):
         return options, segment_ids[0] if segment_ids else None
 
     except Exception as e:
-        logger.error(f"Error loading segments: {e}")
+        logger.error(f"Ошибка загрузки сегментов: {e}")
         return [], None
 
 @app.callback(
@@ -259,7 +260,7 @@ def update_segment_dropdown(selected_file):
     [State('file-dropdown', 'value')]
 )
 def load_segment_data(n_clicks, segment_id, file_path):
-    """Load segment data when load button is clicked or segment is selected"""
+    """Загрузка данных сегмента при нажатии кнопки загрузки или выборе сегмента"""
     if not segment_id or not file_path or not data_loader:
         return None, None
 
@@ -268,7 +269,7 @@ def load_segment_data(n_clicks, segment_id, file_path):
         return data.tolist(), segment_id
 
     except Exception as e:
-        logger.error(f"Error loading segment data: {e}")
+        logger.error(f"Ошибка загрузки данных сегмента: {e}")
         return None, None
 
 @app.callback(
@@ -277,7 +278,7 @@ def load_segment_data(n_clicks, segment_id, file_path):
     [State('current-data-store', 'data')]
 )
 def analyze_segment(n_clicks, data):
-    """Perform spectral analysis on current segment"""
+    """Выполнение спектрального анализа текущего сегмента"""
     if not n_clicks or not data:
         return None
 
@@ -287,7 +288,7 @@ def analyze_segment(n_clicks, data):
         return analysis_results
 
     except Exception as e:
-        logger.error(f"Error analyzing segment: {e}")
+        logger.error(f"Ошибка анализа сегмента: {e}")
         return None
 
 @app.callback(
@@ -301,26 +302,26 @@ def analyze_segment(n_clicks, data):
      Input('current-segment-id-store', 'data')]
 )
 def update_plots(analysis_results, segment_id):
-    """Update all visualization plots"""
+    """Обновление всех графиков визуализации"""
     if not analysis_results:
-        # Return empty plots
-        empty_fig = go.Figure().add_annotation(text="No data available", xref="paper", yref="paper")
+        # Возврат пустых графиков
+        empty_fig = go.Figure().add_annotation(text="Данные недоступны", xref="paper", yref="paper")
         return [empty_fig] * 6
 
     try:
-        # Add data to analysis results for comprehensive plot
+        # Добавление данных к результатам анализа для комплексного графика
         if 'current-data-store' in callback_context.inputs:
             data = callback_context.inputs['current-data-store']
             if data:
                 analysis_results['data'] = np.array(data)
 
-        # Create individual plots with proper error handling
+        # Создание отдельных графиков с правильной обработкой ошибок
         try:
             time_series_fig = visualizer.create_time_series_plot(
                 np.array(analysis_results.get('data', [])), segment_id=segment_id
             )
         except Exception as e:
-            logger.error(f"Error creating time series plot: {e}")
+            logger.error(f"Ошибка создания графика временного ряда: {e}")
             time_series_fig = go.Figure().add_annotation(text="Ошибка загрузки временного ряда", xref="paper", yref="paper")
 
         try:
@@ -328,7 +329,7 @@ def update_plots(analysis_results, segment_id):
                 analysis_results.get('fft'), segment_id=segment_id
             )
         except Exception as e:
-            logger.error(f"Error creating FFT plot: {e}")
+            logger.error(f"Ошибка создания графика FFT: {e}")
             fft_fig = go.Figure().add_annotation(text="Ошибка загрузки спектра Фурье", xref="paper", yref="paper")
 
         try:
@@ -336,7 +337,7 @@ def update_plots(analysis_results, segment_id):
                 analysis_results.get('stft'), segment_id=segment_id
             )
         except Exception as e:
-            logger.error(f"Error creating spectrogram plot: {e}")
+            logger.error(f"Ошибка создания графика спектрограммы: {e}")
             spectrogram_fig = go.Figure().add_annotation(text="Ошибка загрузки спектрограммы", xref="paper", yref="paper")
 
         try:
@@ -344,7 +345,7 @@ def update_plots(analysis_results, segment_id):
                 analysis_results.get('envelope'), segment_id=segment_id
             )
         except Exception as e:
-            logger.error(f"Error creating envelope plot: {e}")
+            logger.error(f"Ошибка создания графика огибающей: {e}")
             envelope_fig = go.Figure().add_annotation(text="Ошибка загрузки огибающей", xref="paper", yref="paper")
 
         try:
@@ -352,7 +353,7 @@ def update_plots(analysis_results, segment_id):
                 analysis_results.get('wavelet'), segment_id=segment_id
             )
         except Exception as e:
-            logger.error(f"Error creating wavelet plot: {e}")
+            logger.error(f"Ошибка создания графика вейвлет-анализа: {e}")
             wavelet_fig = go.Figure().add_annotation(text="Ошибка загрузки вейвлет-анализа", xref="paper", yref="paper")
 
         try:
@@ -360,13 +361,13 @@ def update_plots(analysis_results, segment_id):
                 analysis_results, segment_id=segment_id
             )
         except Exception as e:
-            logger.error(f"Error creating comprehensive plot: {e}")
+            logger.error(f"Ошибка создания комплексного графика: {e}")
             comprehensive_fig = go.Figure().add_annotation(text="Ошибка загрузки комплексного анализа", xref="paper", yref="paper")
 
         return time_series_fig, fft_fig, spectrogram_fig, envelope_fig, wavelet_fig, comprehensive_fig
 
     except Exception as e:
-        logger.error(f"Error updating plots: {e}")
+        logger.error(f"Ошибка обновления графиков: {e}")
         empty_fig = go.Figure().add_annotation(text="Ошибка загрузки графиков", xref="paper", yref="paper")
         return [empty_fig] * 6
 
@@ -376,7 +377,7 @@ def update_plots(analysis_results, segment_id):
      Input('interval-component', 'n_intervals')]
 )
 def update_current_label_display(segment_id, n_intervals):
-    """Update current label display"""
+    """Обновление отображения текущей метки"""
     if not segment_id:
         return html.P("Сегмент не выбран")
 
@@ -395,7 +396,7 @@ def update_current_label_display(segment_id, n_intervals):
             return html.P("Метка для этого сегмента не назначена")
 
     except Exception as e:
-        logger.error(f"Error updating label display: {e}")
+        logger.error(f"Ошибка обновления отображения метки: {e}")
         return html.P("Ошибка загрузки метки")
 
 @app.callback(
@@ -404,9 +405,9 @@ def update_current_label_display(segment_id, n_intervals):
     [Input('interval-component', 'n_intervals')]
 )
 def update_progress_and_statistics(n_intervals):
-    """Update progress and statistics displays"""
+    """Обновление отображения прогресса и статистики"""
     try:
-        # Get progress
+        # Получение прогресса
         if data_loader:
             total_segments = len(data_loader.get_all_segment_ids())
             progress = label_manager.get_labeling_progress(total_segments)
@@ -419,7 +420,7 @@ def update_progress_and_statistics(n_intervals):
         else:
             progress_content = html.P("Данные не загружены")
 
-        # Get statistics
+        # Получение статистики
         stats = label_manager.get_label_statistics()
         if stats['total_labels'] > 0:
             stats_content = dbc.Table([
@@ -433,7 +434,7 @@ def update_progress_and_statistics(n_intervals):
         return progress_content, stats_content
 
     except Exception as e:
-        logger.error(f"Error updating progress and statistics: {e}")
+        logger.error(f"Ошибка обновления прогресса и статистики: {e}")
         return html.P("Ошибка загрузки прогресса"), html.P("Ошибка загрузки статистики")
 
 @app.callback(
@@ -547,7 +548,7 @@ def navigate_segments(prev_clicks, next_clicks, options, current_value):
     prevent_initial_call=True
 )
 def save_label(n_clicks, segment_id, defect_category, severity, confidence, analyst, comments):
-    """Save label for current segment"""
+    """Сохранение метки для текущего сегмента"""
     if not n_clicks or not segment_id or not defect_category or not severity:
         return defect_category
 
@@ -567,7 +568,7 @@ def save_label(n_clicks, segment_id, defect_category, severity, confidence, anal
             return None
 
     except Exception as e:
-        logger.error(f"Error saving label: {e}")
+        logger.error(f"Ошибка сохранения метки: {e}")
         return None
 
 @app.callback(
@@ -580,7 +581,7 @@ def save_label(n_clicks, segment_id, defect_category, severity, confidence, anal
     prevent_initial_call=True
 )
 def clear_label_form(n_clicks):
-    """Clear the label form"""
+    """Очистка формы метки"""
     if not n_clicks:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
@@ -592,7 +593,7 @@ def clear_label_form(n_clicks):
     prevent_initial_call=True
 )
 def export_labels(n_clicks):
-    """Export labels to CSV"""
+    """Экспорт меток в CSV"""
     if not n_clicks:
         return "Экспорт меток"
 
@@ -603,7 +604,7 @@ def export_labels(n_clicks):
         else:
             return "Ошибка экспорта"
     except Exception as e:
-        logger.error(f"Error exporting labels: {e}")
+        logger.error(f"Ошибка экспорта меток: {e}")
         return "Ошибка экспорта"
 
 if __name__ == '__main__':

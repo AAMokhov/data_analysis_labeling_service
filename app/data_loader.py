@@ -1,6 +1,6 @@
 """
-Data Loader Module for HDF5 Files
-Handles loading and managing segmented data from HDF5 files
+Модуль загрузки данных для HDF5 файлов
+Обрабатывает загрузку и управление сегментированными данными из HDF5 файлов
 """
 
 import h5py
@@ -13,14 +13,14 @@ logger = logging.getLogger(__name__)
 
 
 class DataLoader:
-    """Class for loading and managing segmented data from HDF5 files"""
+    """Класс для загрузки и управления сегментированными данными из HDF5 файлов"""
 
     def __init__(self, file_path: str):
         """
-        Initialize DataLoader with HDF5 file path
+        Инициализация DataLoader с путем к HDF5 файлу
 
         Args:
-            file_path: Path to the HDF5 file containing segmented data
+            file_path: Путь к HDF5 файлу, содержащему сегментированные данные
         """
         self.file_path = file_path
         self.segments = {}
@@ -28,18 +28,18 @@ class DataLoader:
         self._load_segments()
 
     def _load_segments(self):
-        """Load all segments from the HDF5 file"""
+        """Загрузка всех сегментов из HDF5 файла"""
         try:
             with h5py.File(self.file_path, 'r') as f:
-                # Navigate to segments structure
+                # Переход к структуре сегментов
                 if 'segments' in f:
                     segments_group = f['segments']
 
-                                        # Find phase groups (e.g., phase_current_T, phase_current_R, phase_current_S)
+                                        # Поиск групп фаз (например, phase_current_T, phase_current_R, phase_current_S)
                     for phase_name in segments_group.keys():
                         phase_group = segments_group[phase_name]
 
-                        # Get all segment IDs for this phase
+                        # Получение всех ID сегментов для этой фазы
                         for segment_id in phase_group.keys():
                             segment_path = f"segments/{phase_name}/{segment_id}/data"
                             if segment_path in f:
@@ -49,21 +49,21 @@ class DataLoader:
                                     'path': segment_path
                                 }
 
-                logger.info(f"Loaded {len(self.segment_ids)} segments from {self.file_path}")
+                logger.info(f"Загружено {len(self.segment_ids)} сегментов из {self.file_path}")
 
         except Exception as e:
-            logger.error(f"Error loading segments from {self.file_path}: {e}")
+            logger.error(f"Ошибка загрузки сегментов из {self.file_path}: {e}")
             raise
 
     def get_segment_data(self, segment_id: str) -> np.ndarray:
         """
-        Get data for a specific segment
+        Получение данных для конкретного сегмента
 
         Args:
-            segment_id: ID of the segment to retrieve
+            segment_id: ID сегмента для извлечения
 
         Returns:
-            numpy array containing the segment data
+            numpy массив, содержащий данные сегмента
         """
         if segment_id not in self.segments:
             raise ValueError(f"Segment {segment_id} not found")
@@ -73,18 +73,18 @@ class DataLoader:
                 data = f[self.segments[segment_id]['path']][:]
                 return data
         except Exception as e:
-            logger.error(f"Error loading segment {segment_id}: {e}")
+            logger.error(f"Ошибка загрузки сегмента {segment_id}: {e}")
             raise
 
     def get_segment_info(self, segment_id: str) -> Dict:
         """
-        Get information about a specific segment
+        Получение информации о конкретном сегменте
 
         Args:
-            segment_id: ID of the segment
+            segment_id: ID сегмента
 
         Returns:
-            Dictionary containing segment information
+            Словарь, содержащий информацию о сегменте
         """
         if segment_id not in self.segments:
             raise ValueError(f"Segment {segment_id} not found")
@@ -148,9 +148,9 @@ class MultiFileDataLoader:
         for file_path in self.file_paths:
             try:
                 self.loaders[file_path] = DataLoader(file_path)
-                logger.info(f"Initialized loader for {file_path}")
+                logger.info(f"Инициализирован загрузчик для {file_path}")
             except Exception as e:
-                logger.error(f"Failed to initialize loader for {file_path}: {e}")
+                logger.error(f"Не удалось инициализировать загрузчик для {file_path}: {e}")
 
     def get_all_segment_ids(self) -> Dict[str, List[str]]:
         """
