@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 # Initialize components
 data_loader = None
 spectral_analyzer = SpectralAnalyzer(sample_rate=25600.0)  # Частота дискретизации 25.6 кГц
-label_manager = LabelManager(output_file="app/data/labeled_data.h5")
+label_manager = None  # Будет создаваться для каждого файла отдельно
 visualizer = SpectralVisualizer()
 
 # Инициализация Dash приложения
@@ -41,7 +41,7 @@ app.layout = dbc.Container([
         ])
     ]),
 
-    # Выбор файла и управление
+    # Выбор файла данных
     dbc.Row([
         dbc.Col([
             dbc.Card([
@@ -49,46 +49,55 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
-                            html.Label("Выберите файл данных:"),
-                            dcc.Dropdown(
-                                id='file-dropdown',
-                                options=[
-                                    {'label': 'processed_current_1.h5', 'value': 'app/data/processed_current_1.h5'}
-									# ,
-                                    # {'label': 'processed_current_2.h5', 'value': 'app/data/processed_current_2.h5'},
-                                    # {'label': 'processed_current_3.h5', 'value': 'app/data/processed_current_3.h5'},
-                                    # {'label': 'processed_data.h5', 'value': 'app/data/processed_data.h5'}
-                                ],
-                                value='app/data/processed_current_1.h5',
-                                placeholder="Выберите файл данных..."
-                            )
-                        ], width=6),
+                            html.Label("Выберите файл данных (.h5):"),
+                            dcc.Upload(
+                                id='file-upload',
+                                children=html.Div([
+                                    'Перетащите файл сюда или ',
+                                    html.A('нажмите для выбора файла')
+                                ]),
+                                style={
+                                    'width': '100%',
+                                    'height': '60px',
+                                    'lineHeight': '60px',
+                                    'borderWidth': '1px',
+                                    'borderStyle': 'dashed',
+                                    'borderRadius': '5px',
+                                    'textAlign': 'center',
+                                    'margin': '10px'
+                                },
+                                multiple=False,
+                                accept='.h5'
+                            ),
+                            html.Div(id='file-upload-status', className="mt-2")
+                        ], width=8),
                         dbc.Col([
-                            html.Label("ID сегмента:"),
-                            dcc.Dropdown(
-                                id='segment-dropdown',
-                                placeholder="Выберите сегмент..."
-                            )
-                        ], width=6)
+                            dbc.Button("Загрузить файл", id="load-btn", color="primary", className="mt-4", disabled=True)
+                        ], width=4)
                     ])
                 ])
             ])
         ])
     ], className="mb-4"),
 
-    # Управление анализом
+    # Управление сегментами
     dbc.Row([
         dbc.Col([
             dbc.Card([
-                dbc.CardHeader("Управление анализом"),
+                dbc.CardHeader("Управление сегментами"),
                 dbc.CardBody([
                     dbc.Row([
                         dbc.Col([
-                            dbc.Button("Загрузить сегмент", id="load-btn", color="primary", className="me-2"),
-                            dbc.Button("Анализировать сегмент", id="analyze-btn", color="success", className="me-2"),
+                            html.Label("ID сегмента:"),
+                            dcc.Dropdown(
+                                id='segment-dropdown',
+                                placeholder="Выберите сегмент..."
+                            )
+                        ], width=6),
+                        dbc.Col([
                             dbc.Button("Предыдущий сегмент", id="prev-btn", color="info", className="me-2"),
                             dbc.Button("Следующий сегмент", id="next-btn", color="info", className="me-2")
-                        ])
+                        ], width=6, className="d-flex align-items-end")
                     ])
                 ])
             ])
@@ -183,6 +192,12 @@ app.layout = dbc.Container([
                             dbc.Button("Очистить метку", id="clear-label-btn", color="warning", className="me-2"),
                             dbc.Button("Экспорт меток", id="export-btn", color="info", className="me-2")
                         ])
+                    ]),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div(id="save-status", className="mt-2"),
+                            html.Div(id="export-status", className="mt-2")
+                        ])
                     ])
                 ])
             ])
@@ -219,32 +234,106 @@ app.layout = dbc.Container([
     dcc.Store(id='current-data-store'),
     dcc.Store(id='analysis-results-store'),
     dcc.Store(id='current-segment-id-store'),
+    dcc.Store(id='uploaded-file-store'),
 
     # Интервальный компонент для автообновления
     dcc.Interval(
         id='interval-component',
         interval=30*1000,  # 30 секунд
         n_intervals=0
+    ),
+
+    # Интервальный компонент для сброса статусов
+    dcc.Interval(
+        id='status-reset-interval',
+        interval=5000,  # 5 секунд
+        n_intervals=0
     )
 
 ], fluid=True)
 
 # Обратные вызовы
+def create_label_manager_for_file(file_path):
+    """Создание LabelManager для конкретного файла"""
+    global label_manager
+    try:
+        # Создаем имя файла меток на основе имени исходного файла
+        import os
+        base_name = os.path.splitext(os.path.basename(file_path))[0]
+        labels_file = f"app/data/{base_name}_labels.h5"
+
+        logger.info(f"Создание LabelManager для файла: {file_path} -> {labels_file}")
+        label_manager = LabelManager(output_file=labels_file)
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка создания LabelManager: {e}")
+        return False
+
+@app.callback(
+    [Output('uploaded-file-store', 'data'),
+     Output('file-upload-status', 'children'),
+     Output('load-btn', 'disabled'),
+     Output('save-status', 'children', allow_duplicate=True)],
+    [Input('file-upload', 'contents')],
+    [State('file-upload', 'filename')],
+    prevent_initial_call=True
+)
+def handle_file_upload(contents, filename):
+    """Обработка загрузки файла с валидацией расширения .h5"""
+    global label_manager
+
+    if contents is None:
+        return None, html.Div("Файл не выбран", style={'color': 'gray'}), True, ""
+
+    # Проверка расширения файла
+    if not filename or not filename.lower().endswith('.h5'):
+        return None, html.Div("❌ Ошибка: выберите файл с расширением .h5", style={'color': 'red'}), True, ""
+
+    try:
+        # Декодирование содержимого файла
+        import base64
+        content_type, content_string = contents.split(',')
+        decoded = base64.b64decode(content_string)
+
+        # Сохранение файла во временную директорию
+        import tempfile
+        import os
+
+        # Создаем временный файл
+        temp_dir = "app/data"
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_file_path = os.path.join(temp_dir, filename)
+
+        with open(temp_file_path, 'wb') as f:
+            f.write(decoded)
+
+        logger.info(f"Файл успешно загружен: {temp_file_path}")
+
+        # Создаем LabelManager для нового файла
+        if create_label_manager_for_file(temp_file_path):
+            return temp_file_path, html.Div(f"✅ Файл загружен: {filename}", style={'color': 'green'}), False, ""
+        else:
+            return None, html.Div(f"❌ Ошибка инициализации меток для файла", style={'color': 'red'}), True, ""
+
+    except Exception as e:
+        logger.error(f"Ошибка обработки загруженного файла: {e}")
+        return None, html.Div(f"❌ Ошибка загрузки файла: {str(e)}", style={'color': 'red'}), True, ""
+
 @app.callback(
     [Output('segment-dropdown', 'options'),
      Output('segment-dropdown', 'value')],
-    [Input('file-dropdown', 'value')]
+    [Input('uploaded-file-store', 'data')]
 )
-def update_segment_dropdown(selected_file):
-    """Обновление выпадающего списка сегментов при выборе файла"""
-    if not selected_file or not os.path.exists(selected_file):
-        logger.info(f"Файл не выбран или не существует: {selected_file}")
+def update_segment_dropdown(uploaded_file):
+    """Обновление выпадающего списка сегментов при загрузке файла"""
+    if not uploaded_file or not os.path.exists(uploaded_file):
+        logger.info(f"Файл не загружен или не существует: {uploaded_file}")
         return [], None
 
     try:
         global data_loader
-        logger.info(f"Инициализация DataLoader для файла: {selected_file}")
-        data_loader = DataLoader(selected_file)
+        logger.info(f"Инициализация DataLoader для файла: {uploaded_file}")
+        data_loader = DataLoader(uploaded_file)
         segment_ids = data_loader.get_all_segment_ids()
         logger.info(f"Загружено сегментов: {len(segment_ids)}")
 
@@ -257,42 +346,30 @@ def update_segment_dropdown(selected_file):
 
 @app.callback(
     [Output('current-data-store', 'data'),
-     Output('current-segment-id-store', 'data')],
+     Output('current-segment-id-store', 'data'),
+     Output('analysis-results-store', 'data'),
+     Output('save-status', 'children', allow_duplicate=True)],
     [Input('load-btn', 'n_clicks'),
      Input('segment-dropdown', 'value')],
-    [State('file-dropdown', 'value')]
+    [State('uploaded-file-store', 'data')],
+    prevent_initial_call=True
 )
-def load_segment_data(n_clicks, segment_id, file_path):
-    """Загрузка данных сегмента при нажатии кнопки загрузки или выборе сегмента"""
-    if not segment_id or not file_path or not data_loader:
-        logger.info(f"Загрузка сегмента: segment_id={segment_id}, file_path={file_path}, data_loader={data_loader is not None}")
-        return None, None
+def load_and_analyze_segment(n_clicks, segment_id, uploaded_file):
+    """Загрузка данных сегмента и автоматический анализ при выборе сегмента"""
+    logger.info(f"Callback load_and_analyze_segment вызван: segment_id={segment_id}, uploaded_file={uploaded_file}")
+
+    if not segment_id or not uploaded_file or not data_loader:
+        logger.info(f"Загрузка сегмента: segment_id={segment_id}, uploaded_file={uploaded_file}, data_loader={data_loader is not None}")
+        return None, None, None, ""
 
     try:
+        # Загрузка данных сегмента
         data = data_loader.get_segment_data(segment_id)
         logger.info(f"Загружены данные сегмента {segment_id}: размер = {len(data)}")
-        return data.tolist(), segment_id
 
-    except Exception as e:
-        logger.error(f"Ошибка загрузки данных сегмента: {e}")
-        return None, None
-
-@app.callback(
-    Output('analysis-results-store', 'data'),
-    [Input('analyze-btn', 'n_clicks')],
-    [State('current-data-store', 'data')]
-)
-def analyze_segment(n_clicks, data):
-    """Выполнение спектрального анализа текущего сегмента"""
-    logger.info(f"Callback analyze_segment вызван: n_clicks={n_clicks}, data={len(data) if data else 0}")
-
-    if not n_clicks or not data:
-        logger.info("Анализ не выполнен: нет кликов или данных")
-        return None
-
-    try:
+        # Автоматический анализ сегмента
         data_array = np.array(data)
-        logger.info(f"Анализ сегмента: размер данных = {len(data_array)}, тип = {type(data_array)}")
+        logger.info(f"Автоматический анализ сегмента: размер данных = {len(data_array)}")
         analysis_results = spectral_analyzer.analyze_segment(data_array)
         logger.info(f"Анализ завершен: получено {len(analysis_results)} результатов")
         logger.info(f"Ключи результатов: {list(analysis_results.keys())}")
@@ -309,13 +386,14 @@ def analyze_segment(n_clicks, data):
         data_size = sys.getsizeof(str(analysis_results))
         logger.info(f"Размер данных для Store: {data_size} байт")
         logger.info(f"Возвращаем результаты анализа с {len(analysis_results)} компонентами")
-        return analysis_results
+
+        return data.tolist(), segment_id, analysis_results, ""
 
     except Exception as e:
-        logger.error(f"Ошибка анализа сегмента: {e}")
+        logger.error(f"Ошибка загрузки и анализа сегмента: {e}")
         import traceback
         logger.error(f"Трассировка: {traceback.format_exc()}")
-        return None
+        return None, None, None, ""
 
 @app.callback(
     [Output('time-series-plot', 'figure'),
@@ -338,7 +416,7 @@ def update_plots(analysis_results, segment_id, current_data):
         # Возврат пустых графиков
         empty_fig = go.Figure()
         empty_fig.add_annotation(
-            text="Нажмите 'Анализировать сегмент' для отображения данных",
+            text="Выберите сегмент для автоматического анализа и отображения данных",
             xref="paper", yref="paper",
             x=0.5, y=0.5, showarrow=False,
             font=dict(size=16)
@@ -419,7 +497,7 @@ def update_plots(analysis_results, segment_id, current_data):
 )
 def update_current_label_display(segment_id, n_intervals):
     """Обновление отображения текущей метки"""
-    if not segment_id:
+    if not segment_id or not label_manager:
         return html.P("Сегмент не выбран")
 
     try:
@@ -449,7 +527,7 @@ def update_progress_and_statistics(n_intervals):
     """Обновление отображения прогресса и статистики"""
     try:
         # Получение прогресса
-        if data_loader:
+        if data_loader and label_manager:
             total_segments = len(data_loader.get_all_segment_ids())
             progress = label_manager.get_labeling_progress(total_segments)
 
@@ -462,7 +540,10 @@ def update_progress_and_statistics(n_intervals):
             progress_content = html.P("Данные не загружены")
 
         # Получение статистики
-        stats = label_manager.get_label_statistics()
+        if label_manager:
+            stats = label_manager.get_label_statistics()
+        else:
+            stats = {'total_labels': 0, 'categories': [], 'analysts': []}
         if stats['total_labels'] > 0:
             stats_content = dbc.Table([
                 html.Tr([html.Th("Всего меток"), html.Td(stats['total_labels'])]),
@@ -484,13 +565,19 @@ def update_progress_and_statistics(n_intervals):
 )
 def update_label_form(segment_id):
     """Update label form with current segment's label"""
-    if not segment_id:
+    if not segment_id or not label_manager:
         return None
 
     try:
         label = label_manager.get_label(segment_id)
-        return label['defect_category'] if label else None
-    except:
+        if label:
+            logger.info(f"Загружена метка для сегмента {segment_id}: {label['defect_category']}")
+            return label['defect_category']
+        else:
+            logger.info(f"Метка для сегмента {segment_id} не найдена")
+            return None
+    except Exception as e:
+        logger.error(f"Ошибка загрузки метки для сегмента {segment_id}: {e}")
         return None
 
 @app.callback(
@@ -499,13 +586,17 @@ def update_label_form(segment_id):
 )
 def update_severity_form(segment_id):
     """Update severity form with current segment's label"""
-    if not segment_id:
+    if not segment_id or not label_manager:
         return None
 
     try:
         label = label_manager.get_label(segment_id)
-        return label['severity'] if label else None
-    except:
+        if label:
+            return label['severity']
+        else:
+            return None
+    except Exception as e:
+        logger.error(f"Ошибка загрузки severity для сегмента {segment_id}: {e}")
         return None
 
 @app.callback(
@@ -514,13 +605,17 @@ def update_severity_form(segment_id):
 )
 def update_confidence_form(segment_id):
     """Update confidence form with current segment's label"""
-    if not segment_id:
+    if not segment_id or not label_manager:
         return 1.0
 
     try:
         label = label_manager.get_label(segment_id)
-        return label['confidence'] if label else 1.0
-    except:
+        if label:
+            return label['confidence']
+        else:
+            return 1.0
+    except Exception as e:
+        logger.error(f"Ошибка загрузки confidence для сегмента {segment_id}: {e}")
         return 1.0
 
 @app.callback(
@@ -529,13 +624,17 @@ def update_confidence_form(segment_id):
 )
 def update_analyst_form(segment_id):
     """Update analyst form with current segment's label"""
-    if not segment_id:
+    if not segment_id or not label_manager:
         return ""
 
     try:
         label = label_manager.get_label(segment_id)
-        return label['analyst'] if label else ""
-    except:
+        if label:
+            return label['analyst']
+        else:
+            return ""
+    except Exception as e:
+        logger.error(f"Ошибка загрузки analyst для сегмента {segment_id}: {e}")
         return ""
 
 @app.callback(
@@ -544,17 +643,22 @@ def update_analyst_form(segment_id):
 )
 def update_comments_form(segment_id):
     """Update comments form with current segment's label"""
-    if not segment_id:
+    if not segment_id or not label_manager:
         return ""
 
     try:
         label = label_manager.get_label(segment_id)
-        return label['comments'] if label else ""
-    except:
+        if label:
+            return label['comments']
+        else:
+            return ""
+    except Exception as e:
+        logger.error(f"Ошибка загрузки comments для сегмента {segment_id}: {e}")
         return ""
 
 @app.callback(
-    Output('segment-dropdown', 'value', allow_duplicate=True),
+    [Output('segment-dropdown', 'value', allow_duplicate=True),
+     Output('save-status', 'children', allow_duplicate=True)],
     [Input('prev-btn', 'n_clicks'),
      Input('next-btn', 'n_clicks')],
     [State('segment-dropdown', 'options'),
@@ -564,7 +668,7 @@ def update_comments_form(segment_id):
 def navigate_segments(prev_clicks, next_clicks, options, current_value):
     """Navigate between segments"""
     if not options:
-        return current_value
+        return current_value, ""
 
     current_index = next((i for i, opt in enumerate(options) if opt['value'] == current_value), 0)
 
@@ -573,12 +677,18 @@ def navigate_segments(prev_clicks, next_clicks, options, current_value):
     elif callback_context.triggered_id == 'next-btn':
         new_index = min(len(options) - 1, current_index + 1)
     else:
-        return current_value
+        return current_value, ""
 
-    return options[new_index]['value']
+    logger.info(f"Навигация к сегменту: {options[new_index]['value']}")
+    return options[new_index]['value'], ""
 
 @app.callback(
-    Output('defect-category-dropdown', 'value', allow_duplicate=True),
+    [Output('defect-category-dropdown', 'value', allow_duplicate=True),
+     Output('severity-dropdown', 'value', allow_duplicate=True),
+     Output('confidence-slider', 'value', allow_duplicate=True),
+     Output('analyst-input', 'value', allow_duplicate=True),
+     Output('comments-textarea', 'value', allow_duplicate=True),
+     Output('save-status', 'children', allow_duplicate=True)],
     [Input('save-label-btn', 'n_clicks')],
     [State('current-segment-id-store', 'data'),
      State('defect-category-dropdown', 'value'),
@@ -590,10 +700,12 @@ def navigate_segments(prev_clicks, next_clicks, options, current_value):
 )
 def save_label(n_clicks, segment_id, defect_category, severity, confidence, analyst, comments):
     """Сохранение метки для текущего сегмента"""
-    if not n_clicks or not segment_id or not defect_category or not severity:
-        return defect_category
+    if not n_clicks or not segment_id or not defect_category or not severity or not label_manager:
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, ""
 
     try:
+        logger.info(f"Сохранение метки для сегмента {segment_id}: {defect_category} - {severity}")
+
         success = label_manager.add_label(
             segment_id=segment_id,
             defect_category=defect_category,
@@ -604,13 +716,15 @@ def save_label(n_clicks, segment_id, defect_category, severity, confidence, anal
         )
 
         if success:
-            return defect_category
+            logger.info(f"Метка успешно сохранена для сегмента {segment_id}")
+            return defect_category, severity, confidence, analyst, comments, html.Div("✅ Метка сохранена", style={'color': 'green'})
         else:
-            return None
+            logger.error(f"Не удалось сохранить метку для сегмента {segment_id}")
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, html.Div("❌ Ошибка сохранения", style={'color': 'red'})
 
     except Exception as e:
         logger.error(f"Ошибка сохранения метки: {e}")
-        return None
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, html.Div(f"❌ Ошибка: {str(e)}", style={'color': 'red'})
 
 @app.callback(
     [Output('defect-category-dropdown', 'value', allow_duplicate=True),
@@ -629,24 +743,58 @@ def clear_label_form(n_clicks):
     return None, None, 1.0, "", ""
 
 @app.callback(
-    Output('export-btn', 'children'),
-    [Input('export-btn', 'n_clicks')],
+    [Output('export-btn', 'children'),
+     Output('export-status', 'children')],
+    [Input('export-btn', 'n_clicks'),
+     Input('status-reset-interval', 'n_intervals')],
     prevent_initial_call=True
 )
-def export_labels(n_clicks):
-    """Экспорт меток в CSV"""
-    if not n_clicks:
-        return "Экспорт меток"
+def export_labels_and_reset(n_clicks, n_intervals):
+    """Экспорт меток в CSV и автоматический сброс статусов"""
+    ctx = dash.callback_context
 
-    try:
-        success = label_manager.export_to_csv("app/data/labels_export.csv")
-        if success:
-            return "Экспорт выполнен успешно!"
-        else:
-            return "Ошибка экспорта"
-    except Exception as e:
-        logger.error(f"Ошибка экспорта меток: {e}")
-        return "Ошибка экспорта"
+    if not ctx.triggered:
+        return "Экспорт меток", ""
+
+    trigger_id = ctx.triggered[0]['prop_id'].split('.')[0]
+
+    # Если сработал интервал сброса
+    if trigger_id == 'status-reset-interval':
+        return dash.no_update, ""
+
+    # Если сработала кнопка экспорта
+    if trigger_id == 'export-btn':
+        if not n_clicks:
+            return "Экспорт меток", ""
+
+        try:
+            logger.info("Начало экспорта меток в CSV")
+
+            # Создаем директорию если не существует
+            import os
+            os.makedirs("app/data", exist_ok=True)
+
+            # Создаем имя файла экспорта на основе текущего файла данных
+            if label_manager and hasattr(label_manager, 'output_file'):
+                base_name = os.path.splitext(os.path.basename(label_manager.output_file))[0]
+                export_path = f"app/data/{base_name}_export.csv"
+            else:
+                export_path = "app/data/labels_export.csv"
+
+            success = label_manager.export_to_csv(export_path)
+
+            if success:
+                logger.info(f"Экспорт успешно завершен: {export_path}")
+                return "Экспорт выполнен!", html.Div(f"✅ Файл сохранен: {export_path}", style={'color': 'green'})
+            else:
+                logger.warning("Нет меток для экспорта")
+                return "Экспорт меток", html.Div("⚠️ Нет меток для экспорта", style={'color': 'orange'})
+
+        except Exception as e:
+            logger.error(f"Ошибка экспорта меток: {e}")
+            return "Экспорт меток", html.Div(f"❌ Ошибка экспорта: {str(e)}", style={'color': 'red'})
+
+    return "Экспорт меток", ""
 
 if __name__ == '__main__':
     app.run_server(debug=True, host='0.0.0.0', port=8050)
