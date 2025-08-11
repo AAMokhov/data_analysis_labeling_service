@@ -63,6 +63,92 @@ class SpectralVisualizer:
             )
 
             return fig
+        except Exception as e:
+            logger.error(f"Ошибка создания графика временного ряда: {e}")
+            fig = go.Figure()
+            fig.add_annotation(
+                text=f"Ошибка создания временного ряда: {str(e)}",
+                xref="paper", yref="paper",
+                x=0.5, y=0.5, showarrow=False
+            )
+            fig.update_layout(
+                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                template=self.layout_template,
+                height=400
+            )
+            return fig
+    def create_time_series_multiphase(self, phase_to_data: Dict[str, np.ndarray],
+                                      sample_rate: float = 25600.0,
+                                      title: str = "Временной ряд (фазы)",
+                                      segment_id: str = "") -> go.Figure:
+        """Отобразить несколько фаз на одном графике."""
+        try:
+            fig = go.Figure()
+            for idx, (phase, arr) in enumerate(sorted(phase_to_data.items())):
+                time_axis = np.arange(len(arr)) / sample_rate
+                fig.add_trace(go.Scatter(
+                    x=time_axis,
+                    y=arr,
+                    mode='lines',
+                    name=f'Phase {phase}',
+                    line=dict(color=self.colors[idx % len(self.colors)], width=1),
+                    hovertemplate='Time: %{x:.3f}s<br>Amplitude: %{y:.3f}<extra></extra>'
+                ))
+            fig.update_layout(
+                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                xaxis_title="Time (s)",
+                yaxis_title="Amplitude",
+                template=self.layout_template,
+                height=400,
+                hovermode='x unified'
+            )
+            return fig
+        except Exception as e:
+            logger.error(f"Ошибка создания мультифазного временного графика: {e}")
+            return self.create_time_series_plot(np.array([]), sample_rate, title, segment_id)
+
+    def create_fft_multiphase(self, phase_to_fft: Dict[str, Dict],
+                              title: str = "Спектр Фурье (фазы)",
+                              segment_id: str = "") -> go.Figure:
+        """Отобразить спектры нескольких фаз на одном графике, общий масштаб 0-300 Гц."""
+        try:
+            fig = go.Figure()
+            max_freq = 300.0
+            for idx, (phase, fft_result) in enumerate(sorted(phase_to_fft.items())):
+                freqs = np.array(fft_result['frequencies'])
+                mags = np.array(fft_result['magnitude'])
+                fig.add_trace(go.Scatter(
+                    x=freqs,
+                    y=mags,
+                    mode='lines',
+                    name=f'FFT {phase}',
+                    line=dict(color=self.colors[idx % len(self.colors)], width=1),
+                    hovertemplate='Frequency: %{x:.1f} Hz<br>Magnitude: %{y:.3f}<extra></extra>'
+                ))
+            fig.update_xaxes(range=[0.0, max_freq])
+            # Линии гармоник 50 Гц
+            try:
+                fig.add_vline(x=50.0, line=dict(color='gray', width=1, dash='dot'))
+                for fx in np.arange(100.0, max_freq + 1e-6, 50.0):
+                    fig.add_vline(x=float(fx), line=dict(color='lightgray', width=1, dash='dot'))
+            except Exception:
+                pass
+            fig.update_layout(
+                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                xaxis_title="Frequency (Hz)",
+                yaxis_title="Magnitude",
+                template=self.layout_template,
+                height=400,
+                hovermode='x unified'
+            )
+            return fig
+        except Exception as e:
+            logger.error(f"Ошибка создания мультифазного FFT: {e}")
+            # Fallback пустая фигура
+            fig = go.Figure()
+            fig.add_annotation(text=f"Ошибка FFT (мультифазы): {str(e)}", xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
+            fig.update_layout(template=self.layout_template, height=400)
+            return fig
 
         except Exception as e:
             logger.error(f"Ошибка создания графика временного ряда: {e}")

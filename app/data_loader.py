@@ -104,6 +104,70 @@ class DataLoader:
         """Get list of all available segment IDs"""
         return sorted(self.segment_ids)
 
+    def _extract_suffix(self, segment_id: str) -> Optional[str]:
+        """
+        Extract numeric suffix from segment_id, e.g. 'current_R_000123' -> '000123'.
+        Fallback to part after last underscore if no digits.
+        """
+        import re
+        m = re.search(r"_(\d+)$", segment_id)
+        if m:
+            return m.group(1)
+        parts = segment_id.split('_')
+        return parts[-1] if len(parts) > 1 else None
+
+    def _extract_phase_letter(self, segment_id: str) -> Optional[str]:
+        """
+        Try to get phase letter from known group name or from segment id.
+        Returns one of ['R','S','T'] if detected, else None.
+        """
+        try:
+            phase_group = self.segments[segment_id]['phase']  # e.g. 'phase_current_R'
+            for letter in ['R', 'S', 'T']:
+                if phase_group.endswith(letter):
+                    return letter
+        except Exception:
+            pass
+        # Fallback parse from segment_id like 'current_R_000000'
+        for letter in ['_R_', '_S_', '_T_']:
+            if letter in segment_id:
+                return letter.strip('_')
+        return None
+
+    def get_related_segment_ids(self, segment_id: str) -> Dict[str, str]:
+        """
+        Find segments across phases (R,S,T) that share the same index suffix as given segment.
+
+        Returns:
+            Dict phase_letter -> segment_id
+        """
+        related: Dict[str, str] = {}
+        suffix = self._extract_suffix(segment_id)
+        if suffix is None:
+            return related
+        for sid in self.segment_ids:
+            if sid.endswith(suffix):
+                letter = self._extract_phase_letter(sid)
+                if letter:
+                    related[letter] = sid
+        return related
+
+    def get_multi_phase_data(self, segment_id: str) -> Dict[str, np.ndarray]:
+        """
+        Load data arrays for all phases related to given segment id (same suffix).
+
+        Returns:
+            Dict phase_letter -> numpy array
+        """
+        out: Dict[str, np.ndarray] = {}
+        related = self.get_related_segment_ids(segment_id)
+        for letter, sid in related.items():
+            try:
+                out[letter] = self.get_segment_data(sid)
+            except Exception:
+                continue
+        return out
+
     def get_segments_by_phase(self, phase: str) -> List[str]:
         """
         Get all segment IDs for a specific phase

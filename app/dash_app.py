@@ -426,24 +426,64 @@ def update_plots(analysis_results, segment_id, current_data):
     try:
         logger.info(f"Обновление графиков: сегмент {segment_id}, данные = {len(current_data) if current_data else 0}")
 
+        # Попытка собрать мультифазные данные
+        multi_phase = {}
+        try:
+            if data_loader and segment_id:
+                multi_phase = data_loader.get_multi_phase_data(segment_id)
+                logger.info(f"Найдены связанные фазы для {segment_id}: {list(multi_phase.keys())}")
+        except Exception as e:
+            logger.warning(f"Не удалось получить мультифазные данные: {e}")
+
         # Добавление данных к результатам анализа для комплексного графика
         if current_data and 'data' not in analysis_results:
             analysis_results['data'] = current_data
 
         # Создание отдельных графиков с правильной обработкой ошибок
         try:
-            time_series_fig = visualizer.create_time_series_plot(
-                np.array(current_data) if current_data else np.array([]), segment_id=segment_id
-            )
+            if multi_phase and len(multi_phase) >= 2:
+                time_series_fig = visualizer.create_time_series_multiphase(
+                    multi_phase, segment_id=segment_id
+                )
+            else:
+                time_series_fig = visualizer.create_time_series_plot(
+                    np.array(current_data) if current_data else np.array([]), segment_id=segment_id
+                )
             logger.info("График временного ряда создан успешно")
         except Exception as e:
             logger.error(f"Ошибка создания графика временного ряда: {e}")
             time_series_fig = go.Figure().add_annotation(text="Ошибка загрузки временного ряда", xref="paper", yref="paper")
 
         try:
-            fft_fig = visualizer.create_fft_plot(
-                analysis_results.get('fft'), segment_id=segment_id
-            )
+            if multi_phase and len(multi_phase) >= 2:
+                # Выполним FFT для всех фаз через анализатор
+                phase_to_fft = {}
+                for phase_letter, arr in multi_phase.items():
+                    try:
+                        res = spectral_analyzer.compute_fft(np.array(arr))
+                        # Добавим пики для удобства
+                        peaks = spectral_analyzer.detect_peaks(res['frequencies'], res['magnitude'])
+                        res['peaks'] = peaks
+                        phase_to_fft[phase_letter] = {
+                            'frequencies': res['frequencies'].tolist(),
+                            'magnitude': res['magnitude'].tolist(),
+                            'peaks': {
+                                'peak_frequencies': peaks['peak_frequencies'].tolist(),
+                                'peak_magnitudes': peaks['peak_magnitudes'].tolist()
+                            }
+                        }
+                    except Exception as e:
+                        logger.warning(f"Ошибка FFT для фазы {phase_letter}: {e}")
+                if phase_to_fft:
+                    fft_fig = visualizer.create_fft_multiphase(phase_to_fft, segment_id=segment_id)
+                else:
+                    fft_fig = visualizer.create_fft_plot(
+                        analysis_results.get('fft'), segment_id=segment_id
+                    )
+            else:
+                fft_fig = visualizer.create_fft_plot(
+                    analysis_results.get('fft'), segment_id=segment_id
+                )
         except Exception as e:
             logger.error(f"Ошибка создания графика FFT: {e}")
             fft_fig = go.Figure().add_annotation(text="Ошибка загрузки спектра Фурье", xref="paper", yref="paper")
