@@ -80,7 +80,8 @@ class SpectralVisualizer:
     def create_time_series_multiphase(self, phase_to_data: Dict[str, np.ndarray],
                                       sample_rate: float = 25600.0,
                                       title: str = "Временной ряд (фазы)",
-                                      segment_id: str = "") -> go.Figure:
+                                      segment_id: str = "",
+                                      primary_phase_letter: Optional[str] = None) -> go.Figure:
         """Отобразить несколько фаз на одном графике."""
         try:
             fig = go.Figure()
@@ -91,7 +92,11 @@ class SpectralVisualizer:
                     y=arr,
                     mode='lines',
                     name=f'Phase {phase}',
-                    line=dict(color=self.colors[idx % len(self.colors)], width=1),
+                    line=dict(
+                        color=self.colors[idx % len(self.colors)],
+                        width=1,
+                        dash=('solid' if (primary_phase_letter is None or str(phase).upper() == str(primary_phase_letter).upper()) else 'dash')
+                    ),
                     hovertemplate='Time: %{x:.3f}s<br>Amplitude: %{y:.3f}<extra></extra>'
                 ))
             fig.update_layout(
@@ -109,7 +114,8 @@ class SpectralVisualizer:
 
     def create_fft_multiphase(self, phase_to_fft: Dict[str, Dict],
                               title: str = "Спектр Фурье (фазы)",
-                              segment_id: str = "") -> go.Figure:
+                              segment_id: str = "",
+                              primary_phase_letter: Optional[str] = None) -> go.Figure:
         """Отобразить спектры нескольких фаз на одном графике, общий масштаб 0-300 Гц."""
         try:
             fig = go.Figure()
@@ -122,7 +128,11 @@ class SpectralVisualizer:
                     y=mags,
                     mode='lines',
                     name=f'FFT {phase}',
-                    line=dict(color=self.colors[idx % len(self.colors)], width=1),
+                    line=dict(
+                        color=self.colors[idx % len(self.colors)],
+                        width=1,
+                        dash=('solid' if (primary_phase_letter is None or str(phase).upper() == str(primary_phase_letter).upper()) else 'dash')
+                    ),
                     hovertemplate='Frequency: %{x:.1f} Hz<br>Magnitude: %{y:.3f}<extra></extra>'
                 ))
             fig.update_xaxes(range=[0.0, max_freq])

@@ -442,8 +442,14 @@ def update_plots(analysis_results, segment_id, current_data):
         # Создание отдельных графиков с правильной обработкой ошибок
         try:
             if multi_phase and len(multi_phase) >= 2:
+                # Вычисляем основную фазу по текущему segment_id (ожидаем шаблон *_R_*|*_S_*|*_T_*)
+                primary_letter = None
+                # for letter in ['R', 'S', 'T']:
+                #     if f"_{letter}_" in str(segment_id):
+                #         primary_letter = letter
+                #         break
                 time_series_fig = visualizer.create_time_series_multiphase(
-                    multi_phase, segment_id=segment_id
+                    multi_phase, segment_id=segment_id, primary_phase_letter=primary_letter
                 )
             else:
                 time_series_fig = visualizer.create_time_series_plot(
@@ -475,7 +481,13 @@ def update_plots(analysis_results, segment_id, current_data):
                     except Exception as e:
                         logger.warning(f"Ошибка FFT для фазы {phase_letter}: {e}")
                 if phase_to_fft:
-                    fft_fig = visualizer.create_fft_multiphase(phase_to_fft, segment_id=segment_id)
+                    # Определим основную фазу из segment_id
+                    primary_letter = None
+                    for letter in ['R', 'S', 'T']:
+                        if f"_{letter}_" in str(segment_id):
+                            primary_letter = letter
+                            break
+                    fft_fig = visualizer.create_fft_multiphase(phase_to_fft, segment_id=segment_id, primary_phase_letter=primary_letter)
                 else:
                     fft_fig = visualizer.create_fft_plot(
                         analysis_results.get('fft'), segment_id=segment_id
