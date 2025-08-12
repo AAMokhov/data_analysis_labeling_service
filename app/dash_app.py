@@ -885,9 +885,88 @@ def save_label(n_clicks, segment_id, defect_category, severity, analyst, comment
             comments=comments
         )
 
+        # Автоматическая разметка аналогичных сегментов по данным
+        propagated_count = 0
+        try:
+            if success and data_loader:
+                logger.info("Старт авторазметки аналогичных сегментов")
+
+                def extract_phase_letter(seg_id: str):
+                    for letter in ['R', 'S', 'T']:
+                        if f"_{letter}_" in str(seg_id):
+                            return letter
+                    return None
+
+                def build_feature_vector(stats: dict) -> np.ndarray:
+                    freq = stats.get('freq_features', {}) if isinstance(stats, dict) else {}
+                    dominant = float(freq.get('dominant_freq', 0.0))
+                    centroid = float(freq.get('spectral_centroid', 0.0))
+                    bandwidth = float(freq.get('spectral_bandwidth', 0.0))
+                    crest = float(stats.get('crest_factor', 0.0))
+                    # Нормализация частот на Найквист
+                    nyq = spectral_analyzer.sample_rate / 2.0 if hasattr(spectral_analyzer, 'sample_rate') else 1.0
+                    v = np.array([
+                        dominant / max(nyq, 1e-9),
+                        centroid / max(nyq, 1e-9),
+                        bandwidth / max(nyq, 1e-9),
+                        crest
+                    ], dtype=float)
+                    return v
+
+                # Вектор для текущего сегмента
+                base_data = data_loader.get_segment_data(segment_id)
+                base_stats = spectral_analyzer.compute_statistical_features(np.array(base_data))
+                base_vec = build_feature_vector(base_stats)
+                base_phase = extract_phase_letter(segment_id)
+
+                # Порог похожести
+                max_freq_diff = 2.0  # Гц
+                max_distance = 0.25  # эмпирический порог по нормализованному вектору
+
+                # Обход всех суффиксов
+                suffixes = data_loader.get_all_suffixes()
+                for sfx in suffixes:
+                    related = data_loader.get_related_segment_ids_by_suffix(sfx)
+                    # Аналогичный сегмент той же фазы
+                    cand_id = related.get(base_phase)
+                    if not cand_id or cand_id == segment_id:
+                        continue
+                    try:
+                        # Если уже размечен той же категорией — пропускаем
+                        existing = label_manager.get_label(cand_id)
+                        if existing and existing.get('defect_category') == defect_category and existing.get('severity') == severity:
+                            continue
+
+                        cand_data = data_loader.get_segment_data(cand_id)
+                        cand_stats = spectral_analyzer.compute_statistical_features(np.array(cand_data))
+                        cand_vec = build_feature_vector(cand_stats)
+
+                        # Условие похожести: доминирующая частота близка и расстояние векторное мало
+                        cand_dom = float(cand_stats.get('freq_features', {}).get('dominant_freq', 0.0))
+                        if abs(cand_dom - float(base_stats.get('freq_features', {}).get('dominant_freq', 0.0))) > max_freq_diff:
+                            continue
+
+                        dist = np.linalg.norm(base_vec - cand_vec)
+                        if dist <= max_distance:
+                            ok = label_manager.add_label(
+                                segment_id=cand_id,
+                                defect_category=defect_category,
+                                severity=severity,
+                                analyst=analyst,
+                                comments=f"Авторазметка: похож на {segment_id}. {comments}" if comments else f"Авторазметка: похож на {segment_id}"
+                            )
+                            if ok:
+                                propagated_count += 1
+                    except Exception as pe:
+                        logger.warning(f"Не удалось обработать кандидат {cand_id}: {pe}")
+                logger.info(f"Авторазметка завершена, добавлено {propagated_count} меток")
+        except Exception as e:
+            logger.error(f"Ошибка авторазметки: {e}")
+
         if success:
             logger.info(f"Метка успешно сохранена для сегмента {segment_id}")
-            return defect_category, severity, analyst, comments, html.Div("✅ Метка сохранена", style={'color': 'green'})
+            status_text = f"✅ Метка сохранена" + (f"; авторазмечено: {propagated_count}" if propagated_count else "")
+            return defect_category, severity, analyst, comments, html.Div(status_text, style={'color': 'green'})
         else:
             logger.error(f"Не удалось сохранить метку для сегмента {segment_id}")
             return dash.no_update, dash.no_update, dash.no_update, dash.no_update, html.Div("❌ Ошибка сохранения", style={'color': 'red'})
