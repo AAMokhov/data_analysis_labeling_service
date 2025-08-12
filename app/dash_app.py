@@ -159,14 +159,6 @@ app.layout = dbc.Container([
                             )
                         ], width=3),
                         dbc.Col([
-                            html.Label("Уверенность (0-1):"),
-                            dcc.Slider(
-                                id='confidence-slider',
-                                min=0, max=1, step=0.1, value=1.0,
-                                marks={i/10: str(i/10) for i in range(0, 11, 2)}
-                            )
-                        ], width=3),
-                        dbc.Col([
                             html.Label("Имя аналитика:"),
                             dcc.Input(
                                 id='analyst-input',
@@ -558,7 +550,6 @@ def update_current_label_display(segment_id, n_intervals):
             return dbc.Table([
                 html.Tr([html.Th("Категория дефекта"), html.Td(label['defect_category'])]),
                 html.Tr([html.Th("Серьезность"), html.Td(label['severity'])]),
-                html.Tr([html.Th("Уверенность"), html.Td(f"{label['confidence']:.2f}")]),
                 html.Tr([html.Th("Аналитик"), html.Td(label['analyst'])]),
                 html.Tr([html.Th("Комментарии"), html.Td(label['comments'])]),
                 html.Tr([html.Th("Время создания"), html.Td(label['timestamp'])])
@@ -651,24 +642,6 @@ def update_severity_form(segment_id):
         logger.error(f"Ошибка загрузки severity для сегмента {segment_id}: {e}")
         return None
 
-@app.callback(
-    Output('confidence-slider', 'value'),
-    [Input('current-segment-id-store', 'data')]
-)
-def update_confidence_form(segment_id):
-    """Update confidence form with current segment's label"""
-    if not segment_id or not label_manager:
-        return 1.0
-
-    try:
-        label = label_manager.get_label(segment_id)
-        if label:
-            return label['confidence']
-        else:
-            return 1.0
-    except Exception as e:
-        logger.error(f"Ошибка загрузки confidence для сегмента {segment_id}: {e}")
-        return 1.0
 
 @app.callback(
     Output('analyst-input', 'value'),
@@ -737,7 +710,6 @@ def navigate_segments(prev_clicks, next_clicks, options, current_value):
 @app.callback(
     [Output('defect-category-dropdown', 'value', allow_duplicate=True),
      Output('severity-dropdown', 'value', allow_duplicate=True),
-     Output('confidence-slider', 'value', allow_duplicate=True),
      Output('analyst-input', 'value', allow_duplicate=True),
      Output('comments-textarea', 'value', allow_duplicate=True),
      Output('save-status', 'children', allow_duplicate=True)],
@@ -745,12 +717,11 @@ def navigate_segments(prev_clicks, next_clicks, options, current_value):
     [State('current-segment-id-store', 'data'),
      State('defect-category-dropdown', 'value'),
      State('severity-dropdown', 'value'),
-     State('confidence-slider', 'value'),
      State('analyst-input', 'value'),
      State('comments-textarea', 'value')],
     prevent_initial_call=True
 )
-def save_label(n_clicks, segment_id, defect_category, severity, confidence, analyst, comments):
+def save_label(n_clicks, segment_id, defect_category, severity, analyst, comments):
     """Сохранение метки для текущего сегмента"""
     if not n_clicks or not segment_id or not defect_category or not severity or not label_manager:
         return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, ""
@@ -762,17 +733,16 @@ def save_label(n_clicks, segment_id, defect_category, severity, confidence, anal
             segment_id=segment_id,
             defect_category=defect_category,
             severity=severity,
-            confidence=confidence,
             analyst=analyst,
             comments=comments
         )
 
         if success:
             logger.info(f"Метка успешно сохранена для сегмента {segment_id}")
-            return defect_category, severity, confidence, analyst, comments, html.Div("✅ Метка сохранена", style={'color': 'green'})
+            return defect_category, severity, analyst, comments, html.Div("✅ Метка сохранена", style={'color': 'green'})
         else:
             logger.error(f"Не удалось сохранить метку для сегмента {segment_id}")
-            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update, html.Div("❌ Ошибка сохранения", style={'color': 'red'})
+            return dash.no_update, dash.no_update, dash.no_update, dash.no_update, html.Div("❌ Ошибка сохранения", style={'color': 'red'})
 
     except Exception as e:
         logger.error(f"Ошибка сохранения метки: {e}")
@@ -781,7 +751,6 @@ def save_label(n_clicks, segment_id, defect_category, severity, confidence, anal
 @app.callback(
     [Output('defect-category-dropdown', 'value', allow_duplicate=True),
      Output('severity-dropdown', 'value', allow_duplicate=True),
-     Output('confidence-slider', 'value', allow_duplicate=True),
      Output('analyst-input', 'value', allow_duplicate=True),
      Output('comments-textarea', 'value', allow_duplicate=True)],
     [Input('clear-label-btn', 'n_clicks')],
@@ -790,9 +759,9 @@ def save_label(n_clicks, segment_id, defect_category, severity, confidence, anal
 def clear_label_form(n_clicks):
     """Очистка формы метки"""
     if not n_clicks:
-        return dash.no_update, dash.no_update, dash.no_update, dash.no_update, dash.no_update
+        return dash.no_update, dash.no_update, dash.no_update, dash.no_update
 
-    return None, None, 1.0, "", ""
+    return None, None, "", ""
 
 @app.callback(
     [Output('export-btn', 'children'),

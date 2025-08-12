@@ -38,7 +38,7 @@ class LabelManager:
         "Критическая"
     ]
 
-    def __init__(self, output_file: str = "labeled_data.h5"):
+    def __init__(self, output_file: str = "labeled_data_general.h5"):
         """
         Инициализация LabelManager
 
@@ -96,24 +96,22 @@ class LabelManager:
     def add_label(self, segment_id: str,
                   defect_category: str,
                   severity: str,
-                  confidence: float = 1.0,
                   comments: str = "",
                   analyst: str = "",
                   timestamp: Optional[str] = None) -> bool:
         """
-        Add or update a label for a segment
+        Добавить или обновить метку для сегмента
 
-        Args:
-            segment_id: ID of the segment
-            defect_category: Category of defect (must be in DEFECT_CATEGORIES)
-            severity: Severity level (must be in SEVERITY_LEVELS)
-            confidence: Confidence level (0.0 to 1.0)
-            comments: Additional comments
-            analyst: Name of the analyst
-            timestamp: Timestamp of labeling (default: current time)
+        Аргументы:
+            segment_id: Идентификатор сегмента
+            defect_category: Категория дефекта (должна быть в DEFECT_CATEGORIES)
+            severity: Уровень серьезности (должен быть в SEVERITY_LEVELS)
+            comments: Дополнительные комментарии
+            analyst: Имя аналитика
+            timestamp: Время маркировки (по умолчанию: текущее время)
 
-        Returns:
-            True if successful, False otherwise
+        Возвращает:
+            True при успехе, False в противном случае
         """
         try:
             # Validate inputs
@@ -123,8 +121,6 @@ class LabelManager:
             if severity not in self.SEVERITY_LEVELS:
                 raise ValueError(f"Invalid severity level: {severity}")
 
-            if not 0.0 <= confidence <= 1.0:
-                raise ValueError(f"Confidence must be between 0.0 and 1.0")
 
             if timestamp is None:
                 timestamp = datetime.now().isoformat()
@@ -133,7 +129,6 @@ class LabelManager:
             label_data = {
                 'defect_category': defect_category,
                 'severity': severity,
-                'confidence': confidence,
                 'comments': comments,
                 'analyst': analyst,
                 'timestamp': timestamp,
@@ -313,7 +308,6 @@ class LabelManager:
                     segment_id=segment_id,
                     defect_category=row['defect_category'],
                     severity=row['severity'],
-                    confidence=row.get('confidence', 1.0),
                     comments=row.get('comments', ''),
                     analyst=row.get('analyst', ''),
                     timestamp=row.get('timestamp', None)
