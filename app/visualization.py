@@ -463,6 +463,44 @@ class SpectralVisualizer:
             )
             return fig
 
+    def create_envelope_multiphase(self, phase_to_envelope: Dict[str, np.ndarray],
+                                   sample_rate: float = 25600.0,
+                                   title: str = "Анализ огибающей (фазы)",
+                                   segment_id: str = "",
+                                   primary_phase_letter: Optional[str] = None) -> go.Figure:
+        """Отобразить огибающие нескольких фаз на одном графике."""
+        try:
+            fig = go.Figure()
+            for idx, (phase, env) in enumerate(sorted(phase_to_envelope.items())):
+                time_axis = np.arange(len(env)) / sample_rate
+                fig.add_trace(go.Scatter(
+                    x=time_axis,
+                    y=env,
+                    mode='lines',
+                    name=f'Envelope {phase}',
+                    line=dict(
+                        color=self.colors[idx % len(self.colors)],
+                        width=1,
+                        dash=('solid' if (primary_phase_letter is None or str(phase).upper() == str(primary_phase_letter).upper()) else 'dash')
+                    ),
+                    hovertemplate='Time: %{x:.3f}s<br>Envelope: %{y:.3f}<extra></extra>'
+                ))
+            fig.update_layout(
+                title=f"{title} - Segment {segment_id}" if segment_id else title,
+                xaxis_title="Time (s)",
+                yaxis_title="Amplitude",
+                template=self.layout_template,
+                height=400,
+                hovermode='x unified'
+            )
+            return fig
+        except Exception as e:
+            logger.error(f"Ошибка создания мультифазной огибающей: {e}")
+            fig = go.Figure()
+            fig.add_annotation(text=f"Ошибка огибающей (мультифазы): {str(e)}", xref="paper", yref="paper", x=0.5, y=0.5, showarrow=False)
+            fig.update_layout(template=self.layout_template, height=400)
+            return fig
+
     def create_wavelet_plot(self, wavelet_result: Dict,
                           title: str = "Вейвлет-анализ",
                           segment_id: str = "",

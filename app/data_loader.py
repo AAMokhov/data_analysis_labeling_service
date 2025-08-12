@@ -104,6 +104,36 @@ class DataLoader:
         """Get list of all available segment IDs"""
         return sorted(self.segment_ids)
 
+    def get_all_suffixes(self) -> List[str]:
+        """Get sorted list of unique suffixes across all segments."""
+        suffixes = set()
+        for sid in self.segment_ids:
+            sfx = self._extract_suffix(sid)
+            if sfx is not None:
+                suffixes.add(sfx)
+        return sorted(suffixes)
+
+    def get_related_segment_ids_by_suffix(self, suffix: str) -> Dict[str, str]:
+        """Find segments for all phases by provided suffix."""
+        related: Dict[str, str] = {}
+        for sid in self.segment_ids:
+            if sid.endswith(suffix):
+                letter = self._extract_phase_letter(sid)
+                if letter:
+                    related[letter] = sid
+        return related
+
+    def get_multi_phase_data_by_suffix(self, suffix: str) -> Dict[str, np.ndarray]:
+        """Load arrays for all phases matching given suffix."""
+        out: Dict[str, np.ndarray] = {}
+        related = self.get_related_segment_ids_by_suffix(suffix)
+        for letter, sid in related.items():
+            try:
+                out[letter] = self.get_segment_data(sid)
+            except Exception:
+                continue
+        return out
+
     def _extract_suffix(self, segment_id: str) -> Optional[str]:
         """
         Extract numeric suffix from segment_id, e.g. 'current_R_000123' -> '000123'.

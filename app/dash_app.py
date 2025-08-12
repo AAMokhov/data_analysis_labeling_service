@@ -112,21 +112,84 @@ app.layout = dbc.Container([
                 dbc.CardBody([
                     dcc.Tabs([
                         dcc.Tab(label="Временной ряд", children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("Показать фазы:"),
+                                    dcc.Checklist(
+                                        id='ts-phase-checklist',
+                                        options=[{'label': p, 'value': p} for p in ['R','S','T']],
+                                        value=['R','S','T'],
+                                        inline=True
+                                    )
+                                ])
+                            ], className="mb-2"),
                             dcc.Graph(id="time-series-plot")
                         ]),
                         dcc.Tab(label="Спектр Фурье", children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("Показать фазы:"),
+                                    dcc.Checklist(
+                                        id='fft-phase-checklist',
+                                        options=[{'label': p, 'value': p} for p in ['R','S','T']],
+                                        value=['R','S','T'],
+                                        inline=True
+                                    )
+                                ])
+                            ], className="mb-2"),
                             dcc.Graph(id="fft-plot")
                         ]),
                         dcc.Tab(label="Спектрограмма", children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("Фаза:"),
+                                    dcc.Dropdown(
+                                        id='stft-phase-dropdown',
+                                        options=[{'label': p, 'value': p} for p in ['R','S','T']],
+                                        value='R', clearable=False
+                                    )
+                                ], width=3)
+                            ], className="mb-2"),
                             dcc.Graph(id="spectrogram-plot")
                         ]),
                         dcc.Tab(label="Анализ огибающей", children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("Показать фазы:"),
+                                    dcc.Checklist(
+                                        id='env-phase-checklist',
+                                        options=[{'label': p, 'value': p} for p in ['R','S','T']],
+                                        value=['R','S','T'],
+                                        inline=True
+                                    )
+                                ])
+                            ], className="mb-2"),
                             dcc.Graph(id="envelope-plot")
                         ]),
                         dcc.Tab(label="Вейвлет-анализ", children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("Фаза:"),
+                                    dcc.Dropdown(
+                                        id='wavelet-phase-dropdown',
+                                        options=[{'label': p, 'value': p} for p in ['R','S','T']],
+                                        value='R', clearable=False
+                                    )
+                                ], width=3)
+                            ], className="mb-2"),
                             dcc.Graph(id="wavelet-plot")
                         ]),
                         dcc.Tab(label="Комплексный вид", children=[
+                            dbc.Row([
+                                dbc.Col([
+                                    html.Label("Фаза:"),
+                                    dcc.Dropdown(
+                                        id='comp-phase-dropdown',
+                                        options=[{'label': p, 'value': p} for p in ['R','S','T']],
+                                        value='R', clearable=False
+                                    )
+                                ], width=3)
+                            ], className="mb-2"),
                             dcc.Graph(id="comprehensive-plot")
                         ])
                     ])
@@ -317,7 +380,7 @@ def handle_file_upload(contents, filename):
     [Input('uploaded-file-store', 'data')]
 )
 def update_segment_dropdown(uploaded_file):
-    """Обновление выпадающего списка сегментов при загрузке файла"""
+    """Обновление списка сегментов: выбор по суффиксам (равное количество между фазами)."""
     if not uploaded_file or not os.path.exists(uploaded_file):
         logger.info(f"Файл не загружен или не существует: {uploaded_file}")
         return [], None
@@ -326,14 +389,14 @@ def update_segment_dropdown(uploaded_file):
         global data_loader
         logger.info(f"Инициализация DataLoader для файла: {uploaded_file}")
         data_loader = DataLoader(uploaded_file)
-        segment_ids = data_loader.get_all_segment_ids()
-        logger.info(f"Загружено сегментов: {len(segment_ids)}")
+        suffixes = data_loader.get_all_suffixes()
+        logger.info(f"Загружено суффиксов: {len(suffixes)}")
 
-        options = [{'label': seg_id, 'value': seg_id} for seg_id in segment_ids]
-        return options, segment_ids[0] if segment_ids else None
+        options = [{'label': sfx, 'value': sfx} for sfx in suffixes]
+        return options, suffixes[0] if suffixes else None
 
     except Exception as e:
-        logger.error(f"Ошибка загрузки сегментов: {e}")
+        logger.error(f"Ошибка загрузки суффиксов: {e}")
         return [], None
 
 @app.callback(
@@ -346,20 +409,26 @@ def update_segment_dropdown(uploaded_file):
     [State('uploaded-file-store', 'data')],
     prevent_initial_call=True
 )
-def load_and_analyze_segment(n_clicks, segment_id, uploaded_file):
-    """Загрузка данных сегмента и автоматический анализ при выборе сегмента"""
-    logger.info(f"Callback load_and_analyze_segment вызван: segment_id={segment_id}, uploaded_file={uploaded_file}")
+def load_and_analyze_segment(n_clicks, suffix_value, uploaded_file):
+    """Загрузка данных по суффиксу и автоматический анализ для основной фазы (R)."""
+    logger.info(f"Callback load_and_analyze_segment вызван: suffix={suffix_value}, uploaded_file={uploaded_file}")
 
-    if not segment_id or not uploaded_file or not data_loader:
-        logger.info(f"Загрузка сегмента: segment_id={segment_id}, uploaded_file={uploaded_file}, data_loader={data_loader is not None}")
+    if not suffix_value or not uploaded_file or not data_loader:
+        logger.info(f"Загрузка сегмента: suffix={suffix_value}, uploaded_file={uploaded_file}, data_loader={data_loader is not None}")
         return None, None, None, ""
 
     try:
-        # Загрузка данных сегмента
-        data = data_loader.get_segment_data(segment_id)
-        logger.info(f"Загружены данные сегмента {segment_id}: размер = {len(data)}")
+        # Получаем сегменты по суффиксу; выбираем базовую фазу R, если есть, иначе первую доступную
+        related = data_loader.get_related_segment_ids_by_suffix(suffix_value)
+        base_seg_id = related.get('R') or next(iter(related.values())) if related else None
+        if not base_seg_id:
+            logger.warning(f"Не найдены сегменты для суффикса {suffix_value}")
+            return None, None, None, ""
 
-        # Автоматический анализ сегмента
+        data = data_loader.get_segment_data(base_seg_id)
+        logger.info(f"Загружены данные сегмента {base_seg_id}: размер = {len(data)}")
+
+        # Автоматический анализ базовой фазы
         data_array = np.array(data)
         logger.info(f"Автоматический анализ сегмента: размер данных = {len(data_array)}")
         analysis_results = spectral_analyzer.analyze_segment(data_array)
@@ -379,7 +448,7 @@ def load_and_analyze_segment(n_clicks, segment_id, uploaded_file):
         logger.info(f"Размер данных для Store: {data_size} байт")
         logger.info(f"Возвращаем результаты анализа с {len(analysis_results)} компонентами")
 
-        return data.tolist(), segment_id, analysis_results, ""
+        return data.tolist(), base_seg_id, analysis_results, ""
 
     except Exception as e:
         logger.error(f"Ошибка загрузки и анализа сегмента: {e}")
@@ -396,9 +465,15 @@ def load_and_analyze_segment(n_clicks, segment_id, uploaded_file):
      Output('comprehensive-plot', 'figure')],
     [Input('analysis-results-store', 'data'),
      Input('current-segment-id-store', 'data'),
-     Input('current-data-store', 'data')]
+     Input('current-data-store', 'data'),
+     Input('ts-phase-checklist', 'value'),
+     Input('fft-phase-checklist', 'value'),
+     Input('env-phase-checklist', 'value'),
+     Input('stft-phase-dropdown', 'value'),
+     Input('wavelet-phase-dropdown', 'value'),
+     Input('comp-phase-dropdown', 'value')]
 )
-def update_plots(analysis_results, segment_id, current_data):
+def update_plots(analysis_results, segment_id, current_data, ts_phases, fft_phases, env_phases, stft_phase, wavelet_phase, comp_phase):
     """Обновление всех графиков визуализации"""
     logger.info(f"update_plots вызван: analysis_results={analysis_results is not None}, segment_id={segment_id}, current_data={len(current_data) if current_data else 0}")
     logger.info(f"Тип analysis_results: {type(analysis_results)}, значение: {analysis_results}")
@@ -440,9 +515,15 @@ def update_plots(analysis_results, segment_id, current_data):
                 #     if f"_{letter}_" in str(segment_id):
                 #         primary_letter = letter
                 #         break
-                time_series_fig = visualizer.create_time_series_multiphase(
-                    multi_phase, segment_id=segment_id, primary_phase_letter=primary_letter
-                )
+                # Фильтрация по чекбоксу фаз
+                selected = set(ts_phases) if isinstance(ts_phases, list) else set()
+                filtered = {p: arr for p, arr in multi_phase.items() if not selected or p in selected}
+                if filtered:
+                    time_series_fig = visualizer.create_time_series_multiphase(
+                        filtered, segment_id=segment_id, primary_phase_letter=primary_letter
+                    )
+                else:
+                    time_series_fig = go.Figure()
             else:
                 time_series_fig = visualizer.create_time_series_plot(
                     np.array(current_data) if current_data else np.array([]), segment_id=segment_id
@@ -456,7 +537,11 @@ def update_plots(analysis_results, segment_id, current_data):
             if multi_phase and len(multi_phase) >= 2:
                 # Выполним FFT для всех фаз через анализатор
                 phase_to_fft = {}
+                # Фильтрация по чекбоксу фаз
+                selected_fft = set(fft_phases) if isinstance(fft_phases, list) else set()
                 for phase_letter, arr in multi_phase.items():
+                    if selected_fft and phase_letter not in selected_fft:
+                        continue
                     try:
                         res = spectral_analyzer.compute_fft(np.array(arr))
                         # Добавим пики для удобства
@@ -481,9 +566,7 @@ def update_plots(analysis_results, segment_id, current_data):
                             break
                     fft_fig = visualizer.create_fft_multiphase(phase_to_fft, segment_id=segment_id, primary_phase_letter=primary_letter)
                 else:
-                    fft_fig = visualizer.create_fft_plot(
-                        analysis_results.get('fft'), segment_id=segment_id
-                    )
+                    fft_fig = go.Figure()
             else:
                 fft_fig = visualizer.create_fft_plot(
                     analysis_results.get('fft'), segment_id=segment_id
@@ -493,36 +576,101 @@ def update_plots(analysis_results, segment_id, current_data):
             fft_fig = go.Figure().add_annotation(text="Ошибка загрузки спектра Фурье", xref="paper", yref="paper")
 
         try:
-            stft_data = analysis_results.get('stft')
-            logger.info(f"Создание спектрограммы: STFT данные = {type(stft_data)}, ключи = {list(stft_data.keys()) if stft_data else None}")
-            spectrogram_fig = visualizer.create_spectrogram_plot(
-                stft_data, segment_id=segment_id
-            )
+            # Если выбранная фаза указана и доступны мультифазные данные, пересчитаем STFT для этой фазы
+            if multi_phase and isinstance(stft_phase, str) and stft_phase in multi_phase:
+                stft_res = spectral_analyzer.compute_stft(np.array(multi_phase[stft_phase]))
+                # Найдем реальный segment_id для выбранной фазы
+                try:
+                    related_ids = data_loader.get_related_segment_ids(segment_id)
+                    seg_for_phase = related_ids.get(stft_phase, segment_id)
+                except Exception:
+                    seg_for_phase = segment_id
+                spectrogram_fig = visualizer.create_spectrogram_plot(
+                    stft_res, segment_id=seg_for_phase
+                )
+            else:
+                stft_data = analysis_results.get('stft')
+                logger.info(f"Создание спектрограммы: STFT данные = {type(stft_data)}, ключи = {list(stft_data.keys()) if stft_data else None}")
+                spectrogram_fig = visualizer.create_spectrogram_plot(
+                    stft_data, segment_id=segment_id
+                )
             logger.info("График спектрограммы создан успешно")
         except Exception as e:
             logger.error(f"Ошибка создания графика спектрограммы: {e}")
             spectrogram_fig = go.Figure().add_annotation(text="Ошибка загрузки спектрограммы", xref="paper", yref="paper")
 
         try:
-            envelope_fig = visualizer.create_envelope_plot(
-                analysis_results.get('envelope'), segment_id=segment_id
-            )
+            # Мультифазовая огибающая по чекбоксу env-phase-checklist
+            if multi_phase and isinstance(env_phases, list):
+                selected_env = set(env_phases)
+                # вычислим огибающую для выбранных фаз
+                phase_to_envelope = {}
+                for phase_letter, arr in multi_phase.items():
+                    if selected_env and phase_letter not in selected_env:
+                        continue
+                    try:
+                        env_res = spectral_analyzer.compute_envelope_analysis(np.array(arr))
+                        env = env_res.get('envelope')
+                        if env is not None:
+                            phase_to_envelope[phase_letter] = np.array(env)
+                    except Exception as e:
+                        logger.warning(f"Ошибка расчета огибающей для фазы {phase_letter}: {e}")
+                if phase_to_envelope:
+                    # Определим основную фазу
+                    primary_letter = None
+                    for letter in ['R', 'S', 'T']:
+                        if f"_{letter}_" in str(segment_id):
+                            primary_letter = letter
+                            break
+                    envelope_fig = visualizer.create_envelope_multiphase(
+                        phase_to_envelope, segment_id=segment_id, primary_phase_letter=primary_letter
+                    )
+                else:
+                    envelope_fig = go.Figure()
+            else:
+                envelope_fig = visualizer.create_envelope_plot(
+                    analysis_results.get('envelope'), segment_id=segment_id
+                )
         except Exception as e:
             logger.error(f"Ошибка создания графика огибающей: {e}")
             envelope_fig = go.Figure().add_annotation(text="Ошибка загрузки огибающей", xref="paper", yref="paper")
 
         try:
-            wavelet_fig = visualizer.create_wavelet_plot(
-                analysis_results.get('wavelet'), segment_id=segment_id
-            )
+            # Пересчет вейвлета для выбранной фазы, если указана
+            if multi_phase and isinstance(wavelet_phase, str) and wavelet_phase in multi_phase:
+                wl_res = spectral_analyzer.compute_wavelet_analysis(np.array(multi_phase[wavelet_phase]))
+                try:
+                    related_ids = data_loader.get_related_segment_ids(segment_id)
+                    seg_for_phase = related_ids.get(wavelet_phase, segment_id)
+                except Exception:
+                    seg_for_phase = segment_id
+                wavelet_fig = visualizer.create_wavelet_plot(
+                    wl_res, segment_id=seg_for_phase, sample_rate=spectral_analyzer.sample_rate
+                )
+            else:
+                wavelet_fig = visualizer.create_wavelet_plot(
+                    analysis_results.get('wavelet'), segment_id=segment_id
+                )
         except Exception as e:
             logger.error(f"Ошибка создания графика вейвлет-анализа: {e}")
             wavelet_fig = go.Figure().add_annotation(text="Ошибка загрузки вейвлет-анализа", xref="paper", yref="paper")
 
         try:
-            comprehensive_fig = visualizer.create_comprehensive_analysis_plot(
-                analysis_results, segment_id=segment_id
-            )
+            # Для комплексного вида пересчитаем полный анализ выбранной фазы, если указана
+            if multi_phase and isinstance(comp_phase, str) and comp_phase in multi_phase:
+                comp_res = spectral_analyzer.analyze_segment(np.array(multi_phase[comp_phase]))
+                try:
+                    related_ids = data_loader.get_related_segment_ids(segment_id)
+                    seg_for_phase = related_ids.get(comp_phase, segment_id)
+                except Exception:
+                    seg_for_phase = segment_id
+                comprehensive_fig = visualizer.create_comprehensive_analysis_plot(
+                    comp_res, segment_id=seg_for_phase, sample_rate=spectral_analyzer.sample_rate
+                )
+            else:
+                comprehensive_fig = visualizer.create_comprehensive_analysis_plot(
+                    analysis_results, segment_id=segment_id
+                )
         except Exception as e:
             logger.error(f"Ошибка создания комплексного графика: {e}")
             comprehensive_fig = go.Figure().add_annotation(text="Ошибка загрузки комплексного анализа", xref="paper", yref="paper")
