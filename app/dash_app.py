@@ -209,7 +209,10 @@ app.layout = dbc.Container([
                             html.Label("Категория дефекта:"),
                             dcc.Dropdown(
                                 id='defect-category-dropdown',
-                                options=[{'label': cat, 'value': cat} for cat in LabelManager.DEFECT_CATEGORIES],
+                                options=[
+                                    {'label': f"{({'Нормальное состояние':'🟢','Дефект наружного кольца':'🔴','Дефект внутреннего кольца':'🟠','Дефект тел качения':'🟣','Дефект сепаратора':'🟡','Дисбаланс':'🔵','Перекос':'🟤','Другое':'⚫️'}).get(cat, '⚫️')} {cat}", 'value': cat}
+                                    for cat in LabelManager.DEFECT_CATEGORIES
+                                ],
                                 placeholder="Выберите категорию дефекта..."
                             )
                         ], width=3),
@@ -392,12 +395,85 @@ def update_segment_dropdown(uploaded_file):
         suffixes = data_loader.get_all_suffixes()
         logger.info(f"Загружено суффиксов: {len(suffixes)}")
 
-        options = [{'label': sfx, 'value': sfx} for sfx in suffixes]
-        return options, suffixes[0] if suffixes else None
+        # Определяем цвет (эмодзи) для каждой категории дефектов
+        CATEGORY_EMOJI = {
+            "Нормальное состояние": "🟢",
+            "Дефект наружного кольца": "🔴",
+            "Дефект внутреннего кольца": "🟠",
+            "Дефект тел качения": "🟣",
+            "Дефект сепаратора": "🟡",
+            "Дисбаланс": "🔵",
+            "Перекос": "🟤",
+            "Другое": "⚫️",
+        }
 
+        def get_suffix_category_emoji(sfx: str) -> str:
+            try:
+                if not label_manager:
+                    return "⚪️"
+                related = data_loader.get_related_segment_ids_by_suffix(sfx)
+                # Приоритет: фаза R, затем S, T
+                for phase in ['R', 'S', 'T']:
+                    seg_id = related.get(phase)
+                    if not seg_id:
+                        continue
+                    lbl = label_manager.get_label(seg_id)
+                    if lbl and 'defect_category' in lbl:
+                        cat = lbl['defect_category']
+                        return CATEGORY_EMOJI.get(cat, "⚫️")
+                return "⚪️"
+            except Exception:
+                return "⚪️"
+
+        options = [{'label': f"{get_suffix_category_emoji(sfx)} {sfx}", 'value': sfx} for sfx in suffixes]
+        return options, suffixes[0] if suffixes else None
     except Exception as e:
         logger.error(f"Ошибка загрузки суффиксов: {e}")
         return [], None
+@app.callback(
+    Output('segment-dropdown', 'options', allow_duplicate=True),
+    [Input('save-label-btn', 'n_clicks'),
+     Input('uploaded-file-store', 'data')],
+    prevent_initial_call=True
+)
+def refresh_segment_colors(n_clicks, uploaded_file):
+    """Обновление цветов в списке сегментов после сохранения меток."""
+    try:
+        if not uploaded_file or not os.path.exists(uploaded_file) or not data_loader:
+            raise Exception("Нет данных для обновления списка сегментов")
+
+        suffixes = data_loader.get_all_suffixes()
+        CATEGORY_EMOJI = {
+            "Нормальное состояние": "🟢",
+            "Дефект наружного кольца": "🔴",
+            "Дефект внутреннего кольца": "🟠",
+            "Дефект тел качения": "🟣",
+            "Дефект сепаратора": "🟡",
+            "Дисбаланс": "🔵",
+            "Перекос": "🟤",
+            "Другое": "⚫️",
+        }
+        def get_suffix_category_emoji(sfx: str) -> str:
+            try:
+                if not label_manager:
+                    return "⚪️"
+                related = data_loader.get_related_segment_ids_by_suffix(sfx)
+                for phase in ['R', 'S', 'T']:
+                    seg_id = related.get(phase)
+                    if not seg_id:
+                        continue
+                    lbl = label_manager.get_label(seg_id)
+                    if lbl and 'defect_category' in lbl:
+                        cat = lbl['defect_category']
+                        return CATEGORY_EMOJI.get(cat, "⚫️")
+                return "⚪️"
+            except Exception:
+                return "⚪️"
+        options = [{'label': f"{get_suffix_category_emoji(sfx)} {sfx}", 'value': sfx} for sfx in suffixes]
+        return options
+    except Exception as e:
+        logger.warning(f"Не удалось обновить цвета списка сегментов: {e}")
+        raise dash.exceptions.PreventUpdate
 
 @app.callback(
     [Output('current-data-store', 'data'),
