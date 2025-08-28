@@ -1,169 +1,169 @@
-# Data Analysis & Labeling Service
+# Сервис анализа и маркировки данных
 
-A comprehensive web-based service for analyzing segmented electrical current data and providing interactive labeling capabilities for machine learning training datasets.
+Комплексный веб-сервис для анализа сегментированных данных электрического тока и предоставления интерактивных возможностей маркировки для наборов данных машинного обучения.
 
-## Features
+## Возможности
 
-### Data Loading
-- **HDF5 Support**: Load segmented data from HDF5 files
-- **Multi-file Support**: Handle multiple data files simultaneously
-- **Segment Management**: Navigate through data segments efficiently
+### Загрузка данных
+- **Поддержка HDF5**: Загрузка сегментированных данных из файлов HDF5
+- **Поддержка множественных файлов**: Обработка нескольких файлов данных одновременно
+- **Управление сегментами**: Эффективная навигация по сегментам данных
 
-### Spectral Analysis
-- **Fast Fourier Transform (FFT)**: Frequency domain analysis
-- **Short-Time Fourier Transform (STFT)**: Time-frequency analysis
-- **Envelope Analysis**: Bearing defect detection
-- **Wavelet Analysis**: Non-stationary signal processing
-- **Peak Detection**: Automatic identification of spectral peaks
-- **Statistical Features**: Comprehensive feature extraction
+### Спектральный анализ
+- **Быстрое преобразование Фурье (БПФ)**: Анализ в частотной области
+- **Кратковременное преобразование Фурье (КПФ)**: Анализ во временно-частотной области
+- **Анализ огибающей**: Обнаружение дефектов подшипников
+- **Вейвлет-анализ**: Обработка нестационарных сигналов
+- **Обнаружение пиков**: Автоматическое определение спектральных пиков
+- **Статистические характеристики**: Комплексное извлечение признаков
 
-### Interactive Visualization
-- **Time Series Plots**: Original signal visualization
-- **FFT Spectra**: Frequency domain visualization
-- **Spectrograms**: Time-frequency heatmaps
-- **Envelope Analysis**: Bearing defect indicators
-- **Wavelet Analysis**: Multi-scale analysis visualization
-- **Comprehensive Dashboard**: All analyses in one view
+### Интерактивная визуализация
+- **Графики временных рядов**: Визуализация исходного сигнала
+- **Спектры БПФ**: Визуализация в частотной области
+- **Спектрограммы**: Тепловые карты времени-частоты
+- **Анализ огибающей**: Индикаторы дефектов подшипников
+- **Вейвлет-анализ**: Визуализация многоуровневого анализа
+- **Комплексная панель**: Все анализы в одном представлении
 
-### Labeling Interface
-- **Defect Categories**:
-  - Normal
-  - Outer ring defect
-  - Inner ring defect
-  - Rolling element defect
-  - Cage defect
-  - Imbalance
-  - Misalignment
-  - Other
+### Интерфейс маркировки
+- **Категории дефектов**:
+  - Нормальный
+  - Дефект наружного кольца
+  - Дефект внутреннего кольца
+  - Дефект тел качения
+  - Дефект сепаратора
+  - Дисбаланс
+  - Несоосность
+  - Другое
 
-- **Severity Levels**:
-  - Initial
-  - Medium
-  - High
-  - Critical
+- **Уровни серьезности**:
+  - Начальный
+  - Средний
+  - Высокий
+  - Критический
 
-- **Additional Features**:
-  - Confidence scoring (0-1)
-  - Analyst attribution
-  - Comments and notes
-  - Timestamp tracking
+- **Дополнительные возможности**:
+  - Оценка уверенности (0-1)
+  - Атрибуция аналитика
+  - Комментарии и заметки
+  - Отслеживание временных меток
 
-### Data Management
-- **HDF5 Storage**: Efficient label storage
-- **CSV Export**: Easy data export
-- **Progress Tracking**: Real-time labeling progress
-- **Statistics Dashboard**: Label distribution analysis
-- **Backup Support**: Automatic backup creation
+### Управление данными
+- **Хранение HDF5**: Эффективное хранение меток
+- **Экспорт CSV**: Простой экспорт данных
+- **Отслеживание прогресса**: Отслеживание прогресса маркировки в реальном времени
+- **Панель статистики**: Анализ распределения меток
+- **Поддержка резервных копий**: Автоматическое создание резервных копий
 
-## Installation
+## Установка
 
-### Prerequisites
-- Python 3.9+ or Anaconda/Miniconda
-- Docker (optional)
+### Предварительные требования
+- Python 3.9+ или Anaconda/Miniconda
+- Docker (опционально)
 
-### Option 1: Anaconda Installation (Recommended)
+### Вариант 1: Установка Anaconda (рекомендуется)
 
-1. **Clone the repository**:
+1. **Клонируйте репозиторий**:
 ```bash
 git clone <repository-url>
 cd data_analysis_labeling_service
 ```
 
-2. **Set up Anaconda environment**:
+2. **Настройте окружение Anaconda**:
 ```bash
 ./setup_conda_env.sh
 ```
 
-3. **Start the application**:
+3. **Запустите приложение**:
 ```bash
 ./start_conda.sh
 ```
 
-4. **Access the web interface**:
-Open your browser and navigate to `http://localhost:8050`
+4. **Откройте веб-интерфейс**:
+Откройте браузер и перейдите по адресу `http://localhost:8050`
 
-### Option 2: Standard Python Installation
+### Вариант 2: Стандартная установка Python
 
-1. **Clone the repository**:
+1. **Клонируйте репозиторий**:
 ```bash
 git clone <repository-url>
 cd data_analysis_labeling_service
 ```
 
-2. **Install dependencies**:
+2. **Установите зависимости**:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. **Run the application**:
+3. **Запустите приложение**:
 ```bash
 python main.py
 ```
 
-4. **Access the web interface**:
-Open your browser and navigate to `http://localhost:8050`
+4. **Откройте веб-интерфейс**:
+Откройте браузер и перейдите по адресу `http://localhost:8050`
 
-### Option 3: Docker Installation
+### Вариант 3: Установка Docker
 
-1. **Build and run with Docker Compose**:
+1. **Соберите и запустите с Docker Compose**:
 ```bash
 docker-compose up --build
 ```
 
-2. **Or build and run manually**:
+2. **Или соберите и запустите вручную**:
 ```bash
 docker build -t data-analysis-labeling-service .
 docker run -p 8050:8050 -v $(pwd)/app/data:/app/app/data data-analysis-labeling-service
 ```
 
-## Anaconda Environment Management
+## Управление окружением Anaconda
 
-### Creating Environment
+### Создание окружения
 ```bash
 ./setup_conda_env.sh
 ```
 
-### Starting Application
+### Запуск приложения
 ```bash
 ./start_conda.sh
 ```
 
-### Updating Environment
+### Обновление окружения
 ```bash
 ./update_conda_env.sh
 ```
 
-### Manual Environment Management
+### Ручное управление окружением
 ```bash
-# Create environment
+# Создание окружения
 conda env create -f environment.yml
 
-# Activate environment
+# Активация окружения
 conda activate data-analysis-labeling
 
-# Update environment
+# Обновление окружения
 conda env update -f environment.yml
 
-# Remove environment (if needed)
+# Удаление окружения (при необходимости)
 conda env remove -n data-analysis-labeling
 ```
 
-## Usage
+## Использование
 
-### Getting Started
+### Начало работы
 
-1. **Select Data File**: Choose an HDF5 file from the dropdown menu
-2. **Load Segments**: The application will automatically load available segments
-3. **Navigate Segments**: Use Previous/Next buttons or select from dropdown
-4. **Analyze Data**: Click "Analyze Segment" to perform spectral analysis
-5. **Review Visualizations**: Explore different analysis views in the tabs
-6. **Apply Labels**: Use the labeling interface to categorize defects
-7. **Save Labels**: Click "Save Label" to store your annotations
-8. **Export Data**: Use "Export Labels" to download CSV file
+1. **Выберите файл данных**: Выберите файл HDF5 из выпадающего меню
+2. **Загрузите сегменты**: Приложение автоматически загрузит доступные сегменты
+3. **Навигация по сегментам**: Используйте кнопки Предыдущий/Следующий или выберите из выпадающего списка
+4. **Анализ данных**: Нажмите "Анализировать сегмент" для выполнения спектрального анализа
+5. **Просмотр визуализаций**: Изучите различные представления анализа во вкладках
+6. **Применение меток**: Используйте интерфейс маркировки для категоризации дефектов
+7. **Сохранение меток**: Нажмите "Сохранить метку" для хранения ваших аннотаций
+8. **Экспорт данных**: Используйте "Экспорт меток" для загрузки CSV-файла
 
-### Data Format
+### Формат данных
 
-The service expects HDF5 files with the following structure:
+Сервис ожидает файлы HDF5 со следующей структурой:
 ```
 segments/
 ├── phase_current_T/
@@ -174,40 +174,40 @@ segments/
 │   └── ...
 ```
 
-### Analysis Parameters
+### Параметры анализа
 
-- **Sample Rate**: Default 1000 Hz (configurable)
-- **FFT Window**: Hann window (configurable)
-- **STFT Parameters**: 256-point segments, 128-point overlap
-- **Envelope Analysis**: 0.1 * Nyquist cutoff frequency
-- **Wavelet Analysis**: Daubechies 4 wavelet, logarithmic scales
+- **Частота дискретизации**: По умолчанию 1000 Гц (настраивается)
+- **Окно БПФ**: Окно Ханна (настраивается)
+- **Параметры КПФ**: 256-точечные сегменты, 128-точечное перекрытие
+- **Анализ огибающей**: 0.1 * частота Найквиста
+- **Вейвлет-анализ**: Вейвлет Добеши 4, логарифмические масштабы
 
-## Configuration
+## Конфигурация
 
-### Environment Variables
-- `PYTHONUNBUFFERED=1`: Enable unbuffered output
-- `DASH_DEBUG=False`: Disable debug mode for production
-- `SAMPLE_RATE=1000`: Set default sample rate
+### Переменные окружения
+- `PYTHONUNBUFFERED=1`: Включить небуферизованный вывод
+- `DASH_DEBUG=False`: Отключить режим отладки для продакшена
+- `SAMPLE_RATE=1000`: Установить частоту дискретизации по умолчанию
 
-### File Paths
-- Data files: `app/data/`
-- Label storage: `app/data/labeled_data.h5`
-- Export files: `app/data/labels_export.csv`
-- Logs: `app.log`
+### Пути к файлам
+- Файлы данных: `app/data/`
+- Хранение меток: `app/data/labeled_data.h5`
+- Файлы экспорта: `app/data/labels_export.csv`
+- Логи: `app.log`
 
-## API Reference
+## Справочник API
 
 ### DataLoader
 ```python
 from app.data_loader import DataLoader
 
-# Initialize loader
+# Инициализация загрузчика
 loader = DataLoader("path/to/data.h5")
 
-# Get segment data
+# Получение данных сегмента
 data = loader.get_segment_data("current_T_000990")
 
-# Get segment info
+# Получение информации о сегменте
 info = loader.get_segment_info("current_T_000990")
 ```
 
@@ -215,10 +215,10 @@ info = loader.get_segment_info("current_T_000990")
 ```python
 from app.spectral_analysis import SpectralAnalyzer
 
-# Initialize analyzer
+# Инициализация анализатора
 analyzer = SpectralAnalyzer(sample_rate=1000.0)
 
-# Perform analysis
+# Выполнение анализа
 results = analyzer.analyze_segment(data)
 ```
 
@@ -226,92 +226,92 @@ results = analyzer.analyze_segment(data)
 ```python
 from app.label_manager import LabelManager
 
-# Initialize manager
+# Инициализация менеджера
 manager = LabelManager("labels.h5")
 
-# Add label
+# Добавление метки
 manager.add_label(
     segment_id="current_T_000990",
-    defect_category="Outer ring defect",
-    severity="Medium",
+    defect_category="Дефект наружного кольца",
+    severity="Средний",
     confidence=0.8,
-    analyst="John Doe",
-    comments="Clear bearing fault signature"
+    analyst="Иван Иванов",
+    comments="Четкая сигнатура дефекта подшипника"
 )
 ```
 
-## Troubleshooting
+## Устранение неполадок
 
-### Common Issues
+### Частые проблемы
 
-1. **HDF5 File Not Found**:
-   - Ensure data files are in the `app/data/` directory
-   - Check file permissions
+1. **Файл HDF5 не найден**:
+   - Убедитесь, что файлы данных находятся в директории `app/data/`
+   - Проверьте права доступа к файлам
 
-2. **Memory Issues**:
-   - Large files may require more memory
-   - Consider processing smaller batches
+2. **Проблемы с памятью**:
+   - Большие файлы могут требовать больше памяти
+   - Рассмотрите обработку меньшими пакетами
 
-3. **Port Already in Use**:
-   - Change port in `main.py` or Docker configuration
-   - Kill existing processes on port 8050
+3. **Порт уже используется**:
+   - Измените порт в `main.py` или конфигурации Docker
+   - Завершите существующие процессы на порту 8050
 
-4. **Dependencies Missing**:
-   - Reinstall requirements: `pip install -r requirements.txt`
-   - Check Python version compatibility
+4. **Отсутствуют зависимости**:
+   - Переустановите требования: `pip install -r requirements.txt`
+   - Проверьте совместимость версии Python
 
-### Logs
-Check `app.log` for detailed error messages and debugging information.
+### Логи
+Проверьте `app.log` для подробных сообщений об ошибках и отладочной информации.
 
-## Development
+## Разработка
 
-### Project Structure
+### Структура проекта
 ```
 data_analysis_labeling_service/
 ├── app/
 │   ├── __init__.py
-│   ├── data_loader.py          # HDF5 data loading
-│   ├── spectral_analysis.py    # Signal processing
-│   ├── label_manager.py        # Label management
-│   ├── visualization.py        # Plotly visualizations
-│   ├── dash_app.py            # Main web application
-│   └── data/                  # Data files
-├── main.py                    # Entry point
-├── requirements.txt           # Dependencies
-├── Dockerfile                 # Container configuration
-├── docker-compose.yml         # Docker orchestration
-└── README.md                  # This file
+│   ├── data_loader.py          # Загрузка данных HDF5
+│   ├── spectral_analysis.py    # Обработка сигналов
+│   ├── label_manager.py        # Управление метками
+│   ├── visualization.py        # Визуализации Plotly
+│   ├── dash_app.py            # Основное веб-приложение
+│   └── data/                  # Файлы данных
+├── main.py                    # Точка входа
+├── requirements.txt           # Зависимости
+├── Dockerfile                 # Конфигурация контейнера
+├── docker-compose.yml         # Оркестрация Docker
+└── README.md                  # Этот файл
 ```
 
-### Adding New Features
+### Добавление новых возможностей
 
-1. **New Analysis Methods**: Extend `SpectralAnalyzer` class
-2. **New Visualizations**: Add methods to `SpectralVisualizer` class
-3. **New Label Categories**: Update `LabelManager.DEFECT_CATEGORIES`
-4. **UI Components**: Modify `dash_app.py` layout and callbacks
+1. **Новые методы анализа**: Расширьте класс `SpectralAnalyzer`
+2. **Новые визуализации**: Добавьте методы в класс `SpectralVisualizer`
+3. **Новые категории меток**: Обновите `LabelManager.DEFECT_CATEGORIES`
+4. **Компоненты UI**: Измените макет и обратные вызовы в `dash_app.py`
 
-### Testing
+### Тестирование
 ```bash
-# Run basic functionality test
-python -c "from app.data_loader import DataLoader; print('DataLoader imported successfully')"
+# Запуск базового теста функциональности
+python -c "from app.data_loader import DataLoader; print('DataLoader успешно импортирован')"
 ```
 
-## License
+## Лицензия
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Этот проект лицензирован под лицензией MIT - см. файл LICENSE для подробностей.
 
-## Contributing
+## Вклад в проект
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+1. Форкните репозиторий
+2. Создайте ветку функций
+3. Внесите изменения
+4. Добавьте тесты, если применимо
+5. Отправьте pull request
 
-## Support
+## Поддержка
 
-For issues and questions:
-- Check the troubleshooting section
-- Review the logs
-- Create an issue in the repository
-- Contact the development team
+Для проблем и вопросов:
+- Проверьте раздел устранения неполадок
+- Просмотрите логи
+- Создайте issue в репозитории
+- Свяжитесь с командой разработки

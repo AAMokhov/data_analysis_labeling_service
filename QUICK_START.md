@@ -1,140 +1,140 @@
-# Quick Start Guide
+# Руководство по быстрому старту
 
-## 🚀 Get Started in 3 Steps
+## 🚀 Начните за 3 шага
 
-### Option 1: Anaconda (Recommended)
+### Вариант 1: Anaconda (рекомендуется)
 ```bash
-# 1. Set up environment
+# 1. Настройте окружение
 ./setup_conda_env.sh
 
-# 2. Start application
+# 2. Запустите приложение
 ./start_conda.sh
 
-# 3. Open browser
-# Navigate to: http://localhost:8050
+# 3. Откройте браузер
+# Перейдите по адресу: http://localhost:8050
 ```
 
-### Option 2: Standard Python
+### Вариант 2: Стандартный Python
 ```bash
-# 1. Install dependencies
+# 1. Установите зависимости
 pip install -r requirements.txt
 
-# 2. Run application
+# 2. Запустите приложение
 python main.py
 
-# 3. Open browser
-# Navigate to: http://localhost:8050
+# 3. Откройте браузер
+# Перейдите по адресу: http://localhost:8050
 ```
 
-## 📊 What You Can Do
+## 📊 Что вы можете делать
 
-### Data Analysis
-- **Load HDF5 files** with segmented current data
-- **Navigate segments** using Previous/Next buttons
-- **Perform spectral analysis** with one click
-- **View multiple visualizations**:
-  - Time series plots
-  - FFT frequency spectra
-  - Spectrograms (STFT)
-  - Envelope analysis
-  - Wavelet analysis
-  - Comprehensive dashboard
+### Анализ данных
+- **Загружать файлы HDF5** с сегментированными данными тока
+- **Навигировать по сегментам** используя кнопки Предыдущий/Следующий
+- **Выполнять спектральный анализ** одним кликом
+- **Просматривать множественные визуализации**:
+  - Графики временных рядов
+  - Частотные спектры БПФ
+  - Спектрограммы (КПФ)
+  - Анализ огибающей
+  - Вейвлет-анализ
+  - Комплексная панель
 
-### Labeling Interface
-- **Categorize defects**:
-  - Normal
-  - Outer ring defect
-  - Inner ring defect
-  - Rolling element defect
-  - Cage defect
-  - Imbalance
-  - Misalignment
-  - Other
+### Интерфейс маркировки
+- **Категоризировать дефекты**:
+  - Нормальный
+  - Дефект наружного кольца
+  - Дефект внутреннего кольца
+  - Дефект тел качения
+  - Дефект сепаратора
+  - Дисбаланс
+  - Несоосность
+  - Другое
 
-- **Set severity levels**:
-  - Initial
-  - Medium
-  - High
-  - Critical
+- **Устанавливать уровни серьезности**:
+  - Начальный
+  - Средний
+  - Высокий
+  - Критический
 
-- **Add metadata**:
-  - Confidence score (0-1)
-  - Analyst name
-  - Comments and notes
+- **Добавлять метаданные**:
+  - Оценка уверенности (0-1)
+  - Имя аналитика
+  - Комментарии и заметки
 
-### Data Management
-- **Automatic saving** to HDF5 format
-- **Export labels** to CSV
-- **Progress tracking** with statistics
-- **Backup support**
+### Управление данными
+- **Автоматическое сохранение** в формате HDF5
+- **Экспорт меток** в CSV
+- **Отслеживание прогресса** со статистикой
+- **Поддержка резервных копий**
 
-## 🎯 Example Workflow
+## 🎯 Пример рабочего процесса
 
-1. **Select Data File**: Choose from dropdown (processed_current_1.h5, etc.)
-2. **Load Segment**: Click "Load Segment" or select from dropdown
-3. **Analyze**: Click "Analyze Segment" to perform spectral analysis
-4. **Review**: Explore different visualization tabs
-5. **Label**: Use the labeling interface to categorize the defect
-6. **Save**: Click "Save Label" to store your annotation
-7. **Navigate**: Use Previous/Next to move between segments
-8. **Export**: Use "Export Labels" when finished
+1. **Выберите файл данных**: Выберите из выпадающего списка (processed_current_1.h5, и т.д.)
+2. **Загрузите сегмент**: Нажмите "Load Segment" или выберите из выпадающего списка
+3. **Анализируйте**: Нажмите "Analyze Segment" для выполнения спектрального анализа
+4. **Просматривайте**: Изучите различные вкладки визуализации
+5. **Маркируйте**: Используйте интерфейс маркировки для категоризации дефекта
+6. **Сохраняйте**: Нажмите "Save Label" для хранения вашей аннотации
+7. **Навигируйте**: Используйте Предыдущий/Следующий для перемещения между сегментами
+8. **Экспортируйте**: Используйте "Export Labels" когда закончите
 
-## 🔧 Troubleshooting
+## 🔧 Устранение неполадок
 
-### Common Issues
-- **Port 8050 in use**: Change port in `main.py` or kill existing process
-- **Missing dependencies**: Run `pip install -r requirements.txt`
-- **Data files not found**: Ensure files are in `app/data/` directory
+### Частые проблемы
+- **Порт 8050 используется**: Измените порт в `main.py` или завершите существующий процесс
+- **Отсутствуют зависимости**: Запустите `pip install -r requirements.txt`
+- **Файлы данных не найдены**: Убедитесь, что файлы находятся в директории `app/data/`
 
-### Test Installation
+### Проверка установки
 ```bash
 python test_installation.py
 ```
 
-## 📁 File Structure
+## 📁 Структура файлов
 ```
 data_analysis_labeling_service/
 ├── app/
-│   ├── data/                    # Your HDF5 data files
-│   ├── data_loader.py           # Data loading
-│   ├── spectral_analysis.py     # Signal processing
-│   ├── label_manager.py         # Label management
-│   ├── visualization.py         # Plotly charts
-│   └── dash_app.py             # Web interface
-├── main.py                      # Entry point
-├── requirements.txt             # Dependencies
-├── Dockerfile                   # Container config
-├── docker-compose.yml           # Docker orchestration
-└── README.md                    # Full documentation
+│   ├── data/                    # Ваши файлы данных HDF5
+│   ├── data_loader.py           # Загрузка данных
+│   ├── spectral_analysis.py     # Обработка сигналов
+│   ├── label_manager.py         # Управление метками
+│   ├── visualization.py         # Графики Plotly
+│   └── dash_app.py             # Веб-интерфейс
+├── main.py                      # Точка входа
+├── requirements.txt             # Зависимости
+├── Dockerfile                   # Конфигурация контейнера
+├── docker-compose.yml           # Оркестрация Docker
+└── README.md                    # Полная документация
 ```
 
-## 🐳 Docker Alternative
+## 🐳 Альтернатива Docker
 ```bash
 docker-compose up --build
 ```
 
-## 📈 Features Overview
+## 📈 Обзор возможностей
 
-### Spectral Analysis
-- **FFT**: Fast Fourier Transform for frequency analysis
-- **STFT**: Short-Time Fourier Transform for time-frequency analysis
-- **Envelope Analysis**: Bearing defect detection
-- **Wavelet Analysis**: Multi-scale signal analysis
-- **Peak Detection**: Automatic spectral peak identification
-- **Statistical Features**: Comprehensive feature extraction
+### Спектральный анализ
+- **БПФ**: Быстрое преобразование Фурье для частотного анализа
+- **КПФ**: Кратковременное преобразование Фурье для временно-частотного анализа
+- **Анализ огибающей**: Обнаружение дефектов подшипников
+- **Вейвлет-анализ**: Многоуровневый анализ сигналов
+- **Обнаружение пиков**: Автоматическое определение спектральных пиков
+- **Статистические характеристики**: Комплексное извлечение признаков
 
-### Interactive Visualization
-- **Zoom and pan** on all plots
-- **Hover information** with detailed data
-- **Multiple view modes** for different analysis needs
-- **Responsive design** for different screen sizes
+### Интерактивная визуализация
+- **Масштабирование и панорамирование** на всех графиках
+- **Информация при наведении** с детальными данными
+- **Множественные режимы просмотра** для различных потребностей анализа
+- **Адаптивный дизайн** для различных размеров экрана
 
-### Label Management
-- **Real-time saving** to prevent data loss
-- **Progress tracking** with visual indicators
-- **Statistics dashboard** for overview
-- **Export capabilities** for ML training
+### Управление метками
+- **Сохранение в реальном времени** для предотвращения потери данных
+- **Отслеживание прогресса** с визуальными индикаторами
+- **Панель статистики** для обзора
+- **Возможности экспорта** для обучения ML
 
-## 🎉 Ready to Start!
+## 🎉 Готово к началу!
 
-Your Data Analysis & Labeling Service is ready to use. Start analyzing and labeling your electrical current data for machine learning training!
+Ваш Сервис анализа и маркировки данных готов к использованию. Начните анализировать и маркировать ваши данные электрического тока для обучения машинного обучения!

@@ -1,261 +1,261 @@
-# Anaconda Setup Guide for Data Analysis & Labeling Service
+# Руководство по настройке Anaconda для сервиса анализа и маркировки данных
 
-## 🐍 Why Use Anaconda?
+## 🐍 Зачем использовать Anaconda?
 
-Anaconda provides several advantages for this project:
-- **Isolated Environment**: Prevents conflicts with system Python packages
-- **Optimized Packages**: Pre-compiled scientific computing packages
-- **Easy Management**: Simple environment creation and dependency management
-- **Cross-platform**: Works consistently across Windows, macOS, and Linux
+Anaconda предоставляет несколько преимуществ для этого проекта:
+- **Изолированное окружение**: Предотвращает конфликты с системными пакетами Python
+- **Оптимизированные пакеты**: Предварительно скомпилированные пакеты для научных вычислений
+- **Простое управление**: Легкое создание окружения и управление зависимостями
+- **Кроссплатформенность**: Работает одинаково на Windows, macOS и Linux
 
-## 🚀 Quick Start with Anaconda
+## 🚀 Быстрый старт с Anaconda
 
-### Prerequisites
-- **Anaconda** or **Miniconda** installed
-  - Download from: https://docs.conda.io/en/latest/miniconda.html
-  - Or: https://www.anaconda.com/products/distribution
+### Предварительные требования
+- **Anaconda** или **Miniconda** установлены
+  - Скачать с: https://docs.conda.io/en/latest/miniconda.html
+  - Или: https://www.anaconda.com/products/distribution
 
-### One-Command Setup
+### Настройка одной командой
 ```bash
-# Navigate to project directory
+# Перейдите в директорию проекта
 cd data_analysis_labeling_service
 
-# Set up environment and start application
+# Настройте окружение и запустите приложение
 ./start_conda.sh
 ```
 
-This script will:
-1. ✅ Check if Anaconda is installed
-2. ✅ Create the conda environment if it doesn't exist
-3. ✅ Activate the environment
-4. ✅ Start the application
-5. ✅ Open browser to http://localhost:8050
+Этот скрипт выполнит:
+1. ✅ Проверит, установлена ли Anaconda
+2. ✅ Создаст conda окружение, если оно не существует
+3. ✅ Активирует окружение
+4. ✅ Запустит приложение
+5. ✅ Откроет браузер по адресу http://localhost:8050
 
-## 📋 Manual Setup Steps
+## 📋 Пошаговая настройка вручную
 
-### Step 1: Create Environment
+### Шаг 1: Создание окружения
 ```bash
-# Create conda environment from environment.yml
+# Создание conda окружения из environment.yml
 conda env create -f environment.yml
 ```
 
-### Step 2: Activate Environment
+### Шаг 2: Активация окружения
 ```bash
-# Activate the environment
+# Активация окружения
 conda activate data-analysis-labeling
 ```
 
-### Step 3: Start Application
+### Шаг 3: Запуск приложения
 ```bash
-# Run the application
+# Запуск приложения
 python main.py
 ```
 
-### Step 4: Access Web Interface
-Open your browser and navigate to: **http://localhost:8050**
+### Шаг 4: Доступ к веб-интерфейсу
+Откройте браузер и перейдите по адресу: **http://localhost:8050**
 
-## 🛠️ Environment Management
+## 🛠️ Управление окружением
 
-### Available Scripts
+### Доступные скрипты
 
-| Script | Purpose |
+| Скрипт | Назначение |
 |--------|---------|
-| `setup_conda_env.sh` | Create new conda environment |
-| `start_conda.sh` | Start application with environment |
-| `update_conda_env.sh` | Update existing environment |
+| `setup_conda_env.sh` | Создание нового conda окружения |
+| `start_conda.sh` | Запуск приложения с окружением |
+| `update_conda_env.sh` | Обновление существующего окружения |
 
-### Manual Commands
+### Ручные команды
 
-#### Create Environment
+#### Создание окружения
 ```bash
 conda env create -f environment.yml
 ```
 
-#### Activate Environment
+#### Активация окружения
 ```bash
 conda activate data-analysis-labeling
 ```
 
-#### Update Environment
+#### Обновление окружения
 ```bash
 conda env update -f environment.yml
 ```
 
-#### List Environments
+#### Список окружений
 ```bash
 conda env list
 ```
 
-#### Remove Environment
+#### Удаление окружения
 ```bash
 conda env remove -n data-analysis-labeling
 ```
 
-#### Export Environment
+#### Экспорт окружения
 ```bash
 conda env export > environment_backup.yml
 ```
 
-## 📦 Environment Contents
+## 📦 Содержимое окружения
 
-The `environment.yml` file includes:
+Файл `environment.yml` включает:
 
-### Core Scientific Packages
-- **Python 3.9**: Main programming language
-- **NumPy**: Numerical computing
-- **SciPy**: Scientific computing
-- **Pandas**: Data manipulation
-- **Matplotlib**: Basic plotting
+### Основные научные пакеты
+- **Python 3.9**: Основной язык программирования
+- **NumPy**: Численные вычисления
+- **SciPy**: Научные вычисления
+- **Pandas**: Манипуляции с данными
+- **Matplotlib**: Базовое построение графиков
 
-### Specialized Packages
-- **Plotly**: Interactive visualizations
-- **H5Py**: HDF5 file handling
-- **PyWavelets**: Wavelet analysis (via pip)
-- **Scikit-learn**: Machine learning utilities
-- **PyArrow**: Fast data processing
+### Специализированные пакеты
+- **Plotly**: Интерактивные визуализации
+- **H5Py**: Обработка файлов HDF5
+- **PyWavelets**: Вейвлет-анализ (через pip)
+- **Scikit-learn**: Утилиты машинного обучения
+- **PyArrow**: Быстрая обработка данных
 
-### Web Framework (via pip)
-- **Dash**: Web application framework
-- **Dash Bootstrap Components**: UI components
-- **Streamlit**: Alternative web framework
+### Веб-фреймворк (через pip)
+- **Dash**: Фреймворк веб-приложений
+- **Dash Bootstrap Components**: UI компоненты
+- **Streamlit**: Альтернативный веб-фреймворк
 
-## 🔧 Troubleshooting
+## 🔧 Устранение неполадок
 
-### Common Issues
+### Частые проблемы
 
-#### 1. Conda Not Found
+#### 1. Conda не найдена
 ```bash
-# Add conda to PATH (if needed)
+# Добавьте conda в PATH (если нужно)
 export PATH="/path/to/anaconda3/bin:$PATH"
 ```
 
-#### 2. Environment Creation Fails
+#### 2. Создание окружения не удалось
 ```bash
-# Try with conda-forge channel
+# Попробуйте с каналом conda-forge
 conda env create -f environment.yml -c conda-forge
 ```
 
-#### 3. Package Conflicts
+#### 3. Конфликты пакетов
 ```bash
-# Remove and recreate environment
+# Удалите и пересоздайте окружение
 conda env remove -n data-analysis-labeling
 conda env create -f environment.yml
 ```
 
-#### 4. Port Already in Use
+#### 4. Порт уже используется
 ```bash
-# Kill existing process
+# Завершите существующий процесс
 lsof -ti:8050 | xargs kill -9
 ```
 
-### Environment Verification
+### Проверка окружения
 
-#### Check Environment
+#### Проверка окружения
 ```bash
-# Verify environment is active
+# Убедитесь, что окружение активно
 conda info --envs
 
-# Check installed packages
+# Проверьте установленные пакеты
 conda list
 ```
 
-#### Test Installation
+#### Тестирование установки
 ```bash
-# Run test suite
+# Запуск тестового набора
 python test_installation.py
 ```
 
-## 📊 Performance Benefits
+## 📊 Преимущества производительности
 
-### Anaconda vs Standard Python
-- **Faster Installation**: Pre-compiled packages
-- **Better Performance**: Optimized scientific libraries
-- **Easier Management**: Environment isolation
-- **Consistent Dependencies**: Version compatibility
+### Anaconda vs Стандартный Python
+- **Быстрая установка**: Предварительно скомпилированные пакеты
+- **Лучшая производительность**: Оптимизированные научные библиотеки
+- **Простое управление**: Изоляция окружения
+- **Совместимые зависимости**: Совместимость версий
 
-### Memory Usage
-- **Isolated Environment**: No system package conflicts
-- **Optimized Libraries**: Better memory management
-- **Clean Dependencies**: Only required packages installed
+### Использование памяти
+- **Изолированное окружение**: Нет конфликтов с системными пакетами
+- **Оптимизированные библиотеки**: Лучшее управление памятью
+- **Чистые зависимости**: Установлены только необходимые пакеты
 
-## 🔄 Updating the Environment
+## 🔄 Обновление окружения
 
-### Automatic Update
+### Автоматическое обновление
 ```bash
 ./update_conda_env.sh
 ```
 
-### Manual Update
+### Ручное обновление
 ```bash
-# Activate environment
+# Активируйте окружение
 conda activate data-analysis-labeling
 
-# Update from environment.yml
+# Обновите из environment.yml
 conda env update -f environment.yml
 
-# Or update specific packages
+# Или обновите конкретные пакеты
 conda update numpy scipy pandas
 ```
 
-## 🐳 Docker Alternative
+## 🐳 Альтернатива Docker
 
-If you prefer Docker over Anaconda:
+Если вы предпочитаете Docker вместо Anaconda:
 ```bash
-# Build and run with Docker
+# Сборка и запуск с Docker
 docker-compose up --build
 ```
 
-## 📝 Environment Customization
+## 📝 Настройка окружения
 
-### Adding New Packages
+### Добавление новых пакетов
 ```bash
-# Activate environment
+# Активируйте окружение
 conda activate data-analysis-labeling
 
-# Install new package
+# Установите новый пакет
 conda install package_name
 
-# Or with pip
+# Или с pip
 pip install package_name
 ```
 
-### Updating environment.yml
+### Обновление environment.yml
 ```bash
-# Export current environment
+# Экспорт текущего окружения
 conda env export > environment.yml
 ```
 
-## 🎯 Best Practices
+## 🎯 Лучшие практики
 
-### Environment Management
-1. **Always activate environment** before running the application
-2. **Use environment.yml** for reproducible setups
-3. **Update regularly** to get latest security patches
-4. **Backup environment** before major changes
+### Управление окружением
+1. **Всегда активируйте окружение** перед запуском приложения
+2. **Используйте environment.yml** для воспроизводимых настроек
+3. **Обновляйте регулярно** для получения последних исправлений безопасности
+4. **Создавайте резервные копии окружения** перед серьезными изменениями
 
-### Development Workflow
-1. **Create environment** once using `setup_conda_env.sh`
-2. **Use start script** for daily development: `./start_conda.sh`
-3. **Update when needed** using `update_conda_env.sh`
-4. **Test changes** with `python test_installation.py`
+### Рабочий процесс разработки
+1. **Создайте окружение** один раз используя `setup_conda_env.sh`
+2. **Используйте скрипт запуска** для ежедневной разработки: `./start_conda.sh`
+3. **Обновляйте при необходимости** используя `update_conda_env.sh`
+4. **Тестируйте изменения** с `python test_installation.py`
 
-## 🎉 Ready to Use!
+## 🎉 Готово к использованию!
 
-Your Anaconda environment is now ready for the Data Analysis & Labeling Service. The isolated environment ensures consistent performance and prevents conflicts with other Python projects.
+Ваше окружение Anaconda теперь готово для сервиса анализа и маркировки данных. Изолированное окружение обеспечивает стабильную производительность и предотвращает конфликты с другими проектами Python.
 
-### Quick Commands Summary
+### Краткое резюме команд
 ```bash
-# First time setup
+# Первоначальная настройка
 ./setup_conda_env.sh
 
-# Daily use
+# Ежедневное использование
 ./start_conda.sh
 
-# Updates
+# Обновления
 ./update_conda_env.sh
 
-# Testing
+# Тестирование
 python test_installation.py
 ```
 
-Happy analyzing! 🚀
+Удачного анализа! 🚀
